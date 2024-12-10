@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -8,6 +9,7 @@ using PraxisCore.Support;
 using PraxisMapper.Classes;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using static PraxisCore.Place;
 
@@ -58,26 +60,21 @@ namespace PraxisMapper.Controllers
 
             return results;
         }
-
-        /// <summary>
-        /// Get the Slippy tile for the given area of the map
-        /// </summary>
-        /// <param name="zoom">The Slippy zoom level. Each number doubles the number of tiles required to cover the full map.</param>
-        /// <param name="x">the Slippy x coordinate</param>
-        /// <param name="y">the Slippy y coordinate</param>
-        /// <param name="styleSet">Which StyleSet to use when drawing the map tile. Defaults to 'mapTiles'</param>
-        /// <param name="onlyLayer">If provided, only draws elements that match this type in the StyleSet</param>
-        /// <returns>The Slippy maptile for the requested area per the server's drawing settings.</returns>
-        /// <remarks>Slippy tiles are the Google Maps style tiles. Most clients will prefer to use the default game map tiles, that cover 
-        /// a Cell8 sized PlusCode specifically.
-        /// If the route with no parameters is called, they will be loaded from the body.</remarks>
+        
         [HttpGet]
         [Route("/[controller]/DrawSlippyTile/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{onlyLayer}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/{styleSet}/{onlyLayer}/{skipType}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/Slippy/")] //slippy map conventions.
-        public ActionResult DrawSlippyTile(int zoom = -1, int x = -1, int y = -1, string styleSet = null, string onlyLayer = null) {
+        [EndpointSummary("Get the Slippy tile for the given area of the map")]
+        [EndpointDescription("Slippy tiles are the Google Maps style tiles. Most clients will prefer to use the default game map tiles, that cover a Cell8 sized PlusCode specifically.")]
+        public ActionResult DrawSlippyTile([Description("The Slippy zoom level. Each number doubles the number of tiles required to cover the full map.")]int zoom = -1,
+            [Description("the Slippy x coordinate")] int x = -1,
+            [Description("the Slippy y coordinate")] int y = -1,
+            [Description("Which StyleSet to use when drawing the map tile. Defaults to 'mapTiles'")] string styleSet = null,
+            [Description("If provided, only draws elements that match this type in the StyleSet (ex: 'tertiary' in mapTiles")] string onlyLayer = null) 
+        {
             try {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/Slippy/" + styleSet + "/VARSREMOVED");
 
@@ -90,7 +87,6 @@ namespace PraxisMapper.Controllers
                     y = decoded.y;
                     styleSet = decoded.styleSet == "" ? null : decoded.styleSet;
                     onlyLayer = decoded.onlyLayer == "" ? null : decoded.onlyLayer;
-                    //skipType = decoded.skipType == "" ? null : decoded.skipType;
                 }
 
                 string tileKey = x.ToString() + "|" + y.ToString() + "|" + zoom.ToString() + onlyLayer;
@@ -123,21 +119,17 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        /// <summary>
-        /// Draws a Slippy tile, using PlusCode terrain values instead of drawing detailed Places.
-        /// </summary>
-        /// <param name="zoom">The Slippy zoom level. Each number doubles the number of tiles required to cover the full map.</param>
-        /// <param name="x">the Slippy x coordinate</param>
-        /// <param name="y">the Slippy y coordinate</param>
-        /// <param name="styleSet">Which StyleSet to use when drawing the map tile. Defaults to 'mapTiles'</param>
-        /// <returns>The Slippy map tile showing Area data instead of Places.</returns>
-        /// <remarks> It will search if any PlusCodes have a key-value pair matching the style set, and draw those that do. 
-        /// This is probably not what you actually want. This may be a legacy function that shouldn't be active.</remarks>
         [HttpGet]
         [Route("/[controller]/DrawSlippyTileAreaData/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/SlippyAreaData/{styleSet}/{zoom}/{x}/{y}.png")] //slippy map conventions.
         [Route("/[controller]/SlippyAreaData/")]
-        public ActionResult DrawSlippyTileAreaData(int zoom = -1, int x = -1, int y = -1, string styleSet = null) {
+        [EndpointSummary("Draws a Slippy tile, using PlusCode terrain values instead of drawing detailed Places.")]
+        [EndpointDescription("The Slippy map tile showing Area data instead of Places. It will search if any PlusCodes have a key-value pair matching the style set, and draw those that do. This is probably not what you actually want. This may be a legacy function that shouldn't be active.")]
+        public ActionResult DrawSlippyTileAreaData([Description("The Slippy zoom level. Each number doubles the number of tiles required to cover the full map.")] int zoom = -1,
+            [Description("the Slippy x coordinate")] int x = -1,
+            [Description("the Slippy y coordinate")] int y = -1, 
+            [Description("Which StyleSet to use when drawing the map tile. Defaults to 'mapTiles'")] string styleSet = null) 
+        {
             try {
                 Response.Headers.Add("X-noPerfTrack", "Maptiles/SlippyAreaData/" + styleSet + "/VARSREMOVED");
 
@@ -179,18 +171,6 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        /// <summary>
-        /// Draws the given PlusCode as an image.
-        /// </summary>
-        /// <param name="code">the PlusCode to draw. Can be any valid PlusCode size.</param>
-        /// <param name="styleSet">The StyleSet to draw in. Defaults to 'mapTiles'</param>
-        /// <param name="onlyLayer">If provided, only draws the elements that match this StyleSet type.</param>
-        /// <param name="skipType">If provided, Places with a key matching this value will not be included in the drawing.</param>
-        /// <returns>A maptile for the given PlusCode area with the given parameters, according to the server's drawing settings</returns>
-        /// <remarks>This is the expected endpoint for the PraxisMapper Godot Client to use when its calling a server instead of drawing tiles locally.
-        /// You can call any PlusCode here, but each character pair removed from the code increases the area by 400x. Drawing time varies depending on the number and complexity of places to draw.
-        /// For large PlusCodes, the image may be scaled down to match the server's max image settings.
-        /// </remarks>
         [HttpGet]
         [Route("/[controller]/DrawPlusCode/{code}/{styleSet}")]
         [Route("/[controller]/DrawPlusCode/{code}")]
@@ -199,7 +179,13 @@ namespace PraxisMapper.Controllers
         [Route("/[controller]/Area/{code}/{styleSet}")]
         [Route("/[controller]/Area/{code}")]
         [Route("/[controller]/Area/")]
-        public ActionResult DrawTile(string code =null, string styleSet = "mapTiles", string onlyLayer = null, string skipType = null) {
+        [EndpointSummary("Draws the given PlusCode as an image.")]
+        [EndpointDescription("This is the expected endpoint for the PraxisMapper Godot Client to use when its calling a server instead of drawing tiles locally. You can call any PlusCode here, but each character pair removed from the code increases the area by 400x. Drawing time varies depending on the number and complexity of places to draw. For large PlusCodes, the image may be scaled down to match the server's max image settings.")]
+        public ActionResult DrawTile([Description("the PlusCode to draw. Can be any valid PlusCode size.")] string code =null,
+            [Description("The StyleSet to draw in. Defaults to 'mapTiles'")] string styleSet = "mapTiles",
+            [Description("If provided, only draws the elements that match this StyleSet type.")] string onlyLayer = null,
+            [Description("If provided, Places with a key matching this value will not be included in the drawing.")] string skipType = null) 
+        {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Area/" + styleSet + "/VARSREMOVED");
 
             if (code == null)
@@ -242,19 +228,15 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        /// <summary>
-        /// Draws the Area data for the given PlusCode
-        /// </summary>
-        /// <param name="code">the PlusCode to draw</param>
-        /// <param name="styleSet">The StyleSet to draw. Defaults to 'mapTiles'</param>
-        /// <returns>A map tile showing the Area Data matches for hte style set</returns>
-        /// <remarks>This will search if any PlusCodes have a key-value pair matching the style set, and draw those that do.
-        /// You probably don't want this, and this might be a very old idea that hasn't been removed yet.</remarks>
         [HttpGet]
         [Route("/[controller]/AreaData/{code}/{styleSet}")]
         [Route("/[controller]/AreaData/{code}")]
         [Route("/[controller]/AreaData/")]
-        public ActionResult DrawTileAreaData(string code = null, string styleSet = "mapTiles") {
+        [EndpointSummary("Draws the Area data for the given PlusCode")]
+        [EndpointDescription("This will search if any PlusCodes have a key-value pair matching the style set, and draw those that do. You probably don't want this, and this might be a very old idea that hasn't been removed yet.")]
+        public ActionResult DrawTileAreaData([Description("the PlusCode to draw")] string code = null,
+            [Description("The StyleSet to draw. Defaults to 'mapTiles'")] string styleSet = "mapTiles") 
+        {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/AreaData/" + styleSet + "/VARSREMOVED");
 
             if (code == null)
@@ -293,37 +275,28 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        /// <summary>
-        /// Tell the server to expire MapTiles that touch the given Place using the given StyleSet
-        /// </summary>
-        /// <param name="elementId">the privacyID(GUID) of the Place in question</param>
-        /// <param name="styleSet">the StyleSet to expire tiles for.</param>
-        /// <remarks>If you have data on Places that players can change via gameplay, you will want to call this when it changes. 
-        /// It will only expire tiles that contain the place in question, and expired tiles aren't redrawn until a request for them occurs.
-        /// Or, if you update geometry data for one place while the server is live, you might want to call this for it. Otherwise, you probably don't need this.</remarks>
         [HttpPut]
         [Route("/[controller]/ExpireTiles/{elementId}/{styleSet}")]
         [Route("/[controller]/Expire/{elementId}/{styleSet}")]
-        public void ExpireTiles(Guid elementId, string styleSet) {
+        [EndpointSummary("Tell the server to expire MapTiles that touch the given Place using the given StyleSet")]
+        [EndpointDescription("In most cases, you'll want to use a custom plugin to call db.ExpireMapTiles(). This is only for a client-only game with a server that only draws map tiles and stores data. If you have data on Places that players can change via gameplay, you will want to call this when it changes. It will only expire tiles that contain the place in question, and expired tiles aren't redrawn until a request for them occurs. Or, if you update geometry data for one place while the server is live, you might want to call this for it. Otherwise, you probably don't need this.")]
+        public void ExpireTiles([Description("the privacyID(GUID) of the Place in question")] Guid elementId,
+            [Description("the StyleSet to expire tiles for")] string styleSet) 
+        {
             Response.Headers.Add("X-noPerfTrack", "Maptiles/Expire/VARSREMOVED");
             using var db = new PraxisContext();
             db.ExpireMapTiles(elementId, styleSet);
         }
 
-        /// <summary>
-        /// Ask the server for the tile's generation ID.
-        /// </summary>
-        /// <param name="plusCode">The plusCode to check</param>
-        /// <param name="styleSet">The StyleSet to check.</param>
-        /// <returns>the generation ID of the tile in question</returns>
-        /// <remarks>This is intended to help reduce server use/bandwidth on games with tiles that get redrawn frequently.
-        /// If the client saves the generationID of the image it downloaded, it can just check for the generationID and only pull the updated tile
-        /// if the server's ID is larger. Intended for overlay tiles that might change due to in-game activities frequently.</remarks>
         [HttpGet]
         [Route("/[controller]/GetTileGenerationId/{plusCode}/{styleSet}")]
         [Route("/[controller]/Generation/{plusCode}/{styleSet}")]
         [Route("/[controller]/Generation/")]
-        public long GetTileGenerationId(string plusCode = null, string styleSet = null) {
+        [EndpointSummary("Ask the server for the tile's generation ID.")]
+        [EndpointDescription("This is intended to help reduce server use/bandwidth on games with tiles that get redrawn frequently. If the client saves the generationID of the image it downloaded, it can just check for the generationID and only pull the updated tile if the server's ID is larger. Intended for overlay tiles that might change due to in-game activities frequently.")]
+        public long GetTileGenerationId([Description("The plusCode to check")] string plusCode = null,
+            [Description("The StyleSet to check.")] string styleSet = null) 
+        {
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
@@ -357,19 +330,16 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        /// <summary>Ask the server for the Slippy tile's generation ID.</summary>
-        /// <param name="x">The Slippy x coordinate.</param>
-        /// <param name="y">The Slippy y coordinate.</param>
-        /// <param name="zoom">The Slippy zoom level.</param>
-        /// <param name="styleSet">The StyleSet to check.</param>
-        /// <returns>the generation ID of the Slippy tile in question</returns>
-        /// <remarks>This is intended to help reduce server use/bandwidth on games with tiles that get redrawn frequently.
-        /// If the client saves the generationID of the image it downloaded, it can just check for the generationID and only pull the updated tile
-        /// if the server's ID is larger. Intended for overlay tiles that might change due to in-game activities frequently.</remarks>
         [HttpGet]
         [Route("/[controller]/GetSlippyTileGenerationId/{x}/{y}/{zoom}/{styleSet}")]
         [Route("/[controller]/Generation/{zoom}/{x}/{y}/{styleSet}")]
-        public long GetSlippyTileGenerationId(string x = null, string y = null, string zoom = null, string styleSet = null) {
+        [EndpointSummary("Ask the server for the Slippy tile's generation ID.")]
+        [EndpointDescription("This is intended to help reduce server use/bandwidth on games with tiles that get redrawn frequently. If the client saves the generationID of the image it downloaded, it can just check for the generationID and only pull the updated tile if the server's ID is larger. Intended for overlay tiles that might change due to in-game activities frequently.")]
+        public long GetSlippyTileGenerationId([Description("The Slippy x coordinate.")] string x = null,
+            [Description("The Slippy y coordinate.")] string y = null,
+            [Description("The Slippy zoom level.")] string zoom = null, 
+            [Description("The StyleSet to check. defaults to 'mapTiles'")] string styleSet = null) 
+        {
             //Returns generationID on the tile on the server
             //if value is *more* than previous value, client should refresh it.
             //if value is equal to previous value, tile has not changed.
@@ -401,15 +371,11 @@ namespace PraxisMapper.Controllers
             }
         }
 
-        /// <summary>
-        /// Draws all entries in a StyleSet in 1 image.
-        /// </summary>
-        /// <param name="styleSet">The Style Set to draw</param>
-        /// <returns>An image that shows a sample of the StyleSet</returns>
-        /// <remarks>Each entry in the style set will be drawn as a circle. Useful to help see at a glance how distinct each entry is.</remarks>
         [HttpGet]
         [Route("/[controller]/StyleTest/{styleSet}")]
-        public ActionResult DrawAllStyleEntries(string styleSet) {
+        [EndpointSummary("Draws all entries in a StyleSet in 1 image.")]
+        [EndpointDescription("Each entry in the style set will be drawn as a circle with the type written above. Useful to help see at a glance how distinct each entry is.")]
+        public ActionResult DrawAllStyleEntries([Description("The Style Set to draw")] string styleSet) {
             var entryName = TagParser.allStyleGroups.Keys.First(s => string.Equals(s, styleSet, StringComparison.OrdinalIgnoreCase));
             var styleData = TagParser.allStyleGroups[entryName].ToList();
             //Draw style as an X by X grid of circles, where X is square root of total sets
