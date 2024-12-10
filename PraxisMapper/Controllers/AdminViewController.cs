@@ -11,9 +11,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace PraxisMapper.Controllers {
+namespace PraxisMapper.Controllers
+{
     [Route("[controller]")]
     public class AdminViewController : Controller {
         private readonly IConfiguration Configuration;
@@ -111,15 +111,12 @@ namespace PraxisMapper.Controllers {
             return View();
         }
 
-        /// <param name="sourceElementId">The OpenStreetMap Id of the Place</param>
-        /// <param name="sourceElementType">The OpenStreetMap type of the Place. 1 = Point, 2 = Way, 3 = Relation</param>
-        /// <returns></returns>
         [HttpGet]
         [Route("/[controller]/GetPlaceInfo/{sourceElementId}/{sourceElementType}")]
         [EndpointSummary("Displays some information on the Place requested and the surrounding area.")]
         [EndpointDescription("The View with a custom map tile focused on the Place requested, and some performance-related stats and info.")]
-        public ActionResult GetPlaceInfo([Description("")]long sourceElementId,
-            [Description("")] int sourceElementType) 
+        public ActionResult GetPlaceInfo([Description("The OpenStreetMap Id of the Place")]long sourceElementId,
+            [Description("The OpenStreetMap type of the Place. 1 = Point, 2 = Way, 3 = Relation")] int sourceElementType) 
         {
             using var db = new PraxisContext();
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
@@ -210,6 +207,7 @@ namespace PraxisMapper.Controllers {
 
         
         //NOTE: This endpoint doesn't function. Use MapTile/StyleTest/{styleSet}
+        //This would probably want to makea  call from here for each entry in the style set and draw them on the UI here.
         //[HttpGet]
         //[Route("/[controller]/StyleTest")]
         //[EndpointSummary("A View to get a quick preview of all Styles.")]
@@ -261,16 +259,10 @@ namespace PraxisMapper.Controllers {
         //    return View();
         //}
 
-        /// <summary>
-        /// Forces all map tiles on the server to be expired
-        /// </summary>
-        /// <returns>The base AdminView</returns>
-        /// <remarks>This only sets the expiration date, and tiles will be redrawn the next time they are requested.
-        /// Should only be necessary when map data is updated</remarks>
         [HttpGet]
         [Route("/[controller]/ExpireTiles")]
-        [EndpointSummary("")]
-        [EndpointDescription("")]
+        [EndpointSummary("Forces all map tiles on the server to be expired")]
+        [EndpointDescription("This only sets the expiration date, and tiles will be redrawn the next time they are requested. Should only be necessary when map data is updated")]
         public IActionResult ExpireTiles()
         {
             using var db = new PraxisContext();
@@ -280,15 +272,10 @@ namespace PraxisMapper.Controllers {
             return Index();
         }
 
-        /// <summary>
-        /// Forces all styles on the database to be reset to defaults
-        /// </summary>
-        /// <returns>the default AdminView page</returns>
-        /// <remarks>This is mostly intended for development while editing styles, if a need to clear out changes occurs</remarks>
         [HttpGet]
         [Route("/[controller]/ResetStyles")]
-        [EndpointSummary("")]
-        [EndpointDescription("")]
+        [EndpointSummary("Forces all styles on the database to be reset to defaults")]
+        [EndpointDescription("This is mostly intended for development while editing styles, if a need to clear out changes occurs")]
         public IActionResult ResetStyles()
         {
             using var db = new PraxisContext();
