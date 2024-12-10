@@ -19,3 +19,9 @@ To create the DB from an application, call
 context.Database.EnsureCreated()
 This creates the database if it doesn't already exist and skips the Migration logic.
 
+
+
+(maybe) To get IIS to listen to localhost on IPv6:
+run netsh as an administrator
+http
+add iplisten ipaddress=::
