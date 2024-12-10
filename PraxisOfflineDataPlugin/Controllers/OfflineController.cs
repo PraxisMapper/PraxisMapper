@@ -12,7 +12,7 @@ using System.Text.Json;
 namespace PraxisOfflineDataPlugin.Controllers
 {
     [Route("[controller]")]
-    public class OfflineController : Controller, IPraxisPlugin
+    public class OfflineController : Controller
     {
         public static string PrivacyPolicy = "";
         //NOTE: for more accurate data, I could save cell10 info in the final dictionary.
@@ -154,6 +154,7 @@ namespace PraxisOfflineDataPlugin.Controllers
             return JsonSerializer.Serialize(terrainDict);
         }
 
+        [ExcludeFromDescription]
         private static Dictionary<string, int> GetTerrainIndex(string style = "mapTiles")
         {
             var dict = new Dictionary<string, int>();
@@ -167,6 +168,7 @@ namespace PraxisOfflineDataPlugin.Controllers
             return dict;
         }
 
+        [ExcludeFromDescription]
         static List<string> GetCellCombos()
         {
             var list = new List<string>(400);
@@ -179,6 +181,7 @@ namespace PraxisOfflineDataPlugin.Controllers
             return list;
         }
 
+        [ExcludeFromDescription]
         static List<string> GetCell2Combos()
         {
             var list = new List<string>(400);

@@ -9,7 +9,7 @@ using System.Text.Json;
 
 namespace PraxisMapper.Controllers {
     [Route("[controller]")]
-    public class SlippyController : Controller, IPraxisPlugin 
+    public class SlippyController : Controller 
     {
         public static string PrivacyPolicy = "";
         public override void OnActionExecuting(ActionExecutingContext context)

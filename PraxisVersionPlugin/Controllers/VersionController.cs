@@ -5,7 +5,7 @@ using PraxisCore.Support;
 namespace PraxisVersionPlugin.Controllers {
     [ApiController]
     [Route("[controller]")]
-    public class VersionController : Controller, IPraxisPlugin {
+    public class VersionController : Controller {
         public static string PrivacyPolicy = "";
 
         [HttpGet]
