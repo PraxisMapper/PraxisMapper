@@ -377,8 +377,6 @@ namespace PraxisMapper.Controllers
 
             //TODO: server-specific addendum. Probably to be added in the database somewhere.
 
-            //TODO: Plugin information. To be loaded as part of the IPraxisPlugin interface.
-
             foreach (var plugin in GlobalPlugins.plugins)
             {
                 if (!string.IsNullOrWhiteSpace(plugin.PrivacyPolicy))
