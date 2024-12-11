@@ -6,7 +6,8 @@ using PraxisCore;
 using System;
 using System.Buffers;
 
-namespace PraxisMapper.Controllers {
+namespace PraxisClientDataPlugin.Controllers
+{
     /// <summary>
     /// The SecureData endpoints were intended to allow a client-driven app to be able to store data securely on a server.
     /// This is one of the earliest bits of the server developed, and the utility area for these is now rather small. 
@@ -18,16 +19,19 @@ namespace PraxisMapper.Controllers {
     /// </summary>
     [Route("[controller]")]
     [ApiController]
-    public class SecureDataController : Controller {
+    public class SecureDataController : Controller
+    {
         private readonly IConfiguration Configuration;
         private static IMemoryCache cache;
 
-        public SecureDataController(IConfiguration config, IMemoryCache memoryCacheSingleton) {
+        public SecureDataController(IConfiguration config, IMemoryCache memoryCacheSingleton)
+        {
             Configuration = config;
             cache = memoryCacheSingleton;
         }
 
-        public override void OnActionExecuting(ActionExecutingContext context) {
+        public override void OnActionExecuting(ActionExecutingContext context)
+        {
             base.OnActionExecuting(context);
             if (Configuration.GetValue<bool>("enableDataEndpoints") == false)
                 HttpContext.Abort();
@@ -56,7 +60,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Place/{elementId}/{key}/{password}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}")]
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}/{expiresIn}")]
-        public bool SetSecureElementData(Guid elementId, string key, string value, string password, double? expiresIn = null) {
+        public bool SetSecureElementData(Guid elementId, string key, string value, string password, double? expiresIn = null)
+        {
             //TODO: make a route that can allow password to be sent via body.
             Response.Headers.Add("X-noPerfTrack", "SecureData/Place/" + elementId.ToString() + "/VALUESREMOVED-PUT");
             SimpleLockable.PerformWithLock(elementId + "-" + key, () =>
@@ -82,7 +87,8 @@ namespace PraxisMapper.Controllers {
         [HttpGet]
         [Route("/[controller]/Element/{elementId}/{key}/{password}")]
         [Route("/[controller]/Place/{elementId}/{key}/{password}")]
-        public void GetSecureElementData(Guid elementId, string key, string password) {
+        public void GetSecureElementData(Guid elementId, string key, string password)
+        {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Place/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecurePlaceData(elementId, key, password);
             Response.BodyWriter.Write(rawData);
@@ -106,7 +112,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Player/{accountId}/{key}/{password}")]
         [Route("/[controller]/Player/{accountId}/{key}/{value}/{password}")]
         [Route("/[controller]/Player/{accountId}/{key}/{value}/{password}/{expiresIn}")]
-        public bool SetSecurePlayerData(string accountId, string key, string value, string password, double? expiresIn = null) {
+        public bool SetSecurePlayerData(string accountId, string key, string value, string password, double? expiresIn = null)
+        {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Player/" + accountId.ToString() + "/VALUESREMOVED-PUT");
 
             SimpleLockable.PerformWithLock(accountId + "-" + key, () =>
@@ -132,7 +139,8 @@ namespace PraxisMapper.Controllers {
         /// Most server-side game code should be done in a custom plugin, directly calling the function in GenericData. See PraxisDemos/UnroutineController for an example of how to use these.</remarks>
         [HttpGet]
         [Route("/[controller]/Player/{accountId}/{key}/{password}")]
-        public void GetSecurePlayerData(string accountId, string key, string password) {
+        public void GetSecurePlayerData(string accountId, string key, string password)
+        {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Player/VALUESREMOVED-GET");
             byte[] rawData = GenericData.GetSecurePlayerData(accountId, key, password);
             Response.BodyWriter.Write(rawData);
@@ -160,7 +168,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/Area/{plusCode}/{key}/{password}")]
         [Route("/[controller]/Area/{plusCode}/{key}/{value}/{password}")]
         [Route("/[controller]/Area/{plusCode}/{key}/{value}/{password}/{expiresIn}")]
-        public bool SetSecurePlusCodeData(string plusCode, string key, string value, string password, double? expiresIn = null) {
+        public bool SetSecurePlusCodeData(string plusCode, string key, string value, string password, double? expiresIn = null)
+        {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-PUT");
             if (!DataCheck.IsInBounds(plusCode))
                 return false;
@@ -189,7 +198,8 @@ namespace PraxisMapper.Controllers {
         [Route("/[controller]/GetSecurePlusCodeData/{plusCode}/{key}/{password}")]
         [Route("/[controller]/GetPlusCode/{plusCode}/{key}/{password}")]
         [Route("/[controller]/Area/{plusCode}/{key}/{password}")]
-        public void GetSecurePlusCodeData(string plusCode, string key, string password) {
+        public void GetSecurePlusCodeData(string plusCode, string key, string password)
+        {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Area/" + plusCode + "/VALUESREMOVED-GET");
             if (!DataCheck.IsInBounds(plusCode))
                 return;
@@ -211,7 +221,8 @@ namespace PraxisMapper.Controllers {
         [HttpPut]
         [Route("/[controller]/Place/Increment{elementId}/{key}/{password}/{changeAmount}/{expirationTimer}")]
         [Route("/[controller]/Place/Increment{elementId}/{key}/{password}/{changeAmount}")]
-        public void IncrementSecureElementData(Guid elementId, string key, string password, double changeAmount, double? expirationTimer = null) {
+        public void IncrementSecureElementData(Guid elementId, string key, string password, double changeAmount, double? expirationTimer = null)
+        {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Place/Increment" + elementId.ToString() + "/VALUESREMOVED");
             GenericData.IncrementSecurePlaceData(elementId, key, password, changeAmount, expirationTimer);
         }
@@ -230,7 +241,8 @@ namespace PraxisMapper.Controllers {
         [HttpPut]
         [Route("/[controller]/Player/Increment{playerId}/{key}/{password}/{changeAmount}/{expirationTimer}")]
         [Route("/[controller]/Player/Increment{playerId}/{key}/{password}/{changeAmount}")]
-        public void IncrementSecurePlayerData(string playerId, string key, string password, double changeAmount, double? expirationTimer = null) {
+        public void IncrementSecurePlayerData(string playerId, string key, string password, double changeAmount, double? expirationTimer = null)
+        {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Player/Increment/VALUESREMOVED");
             GenericData.IncrementSecurePlayerData(playerId, key, password, changeAmount, expirationTimer);
         }
@@ -249,7 +261,8 @@ namespace PraxisMapper.Controllers {
         [HttpPut]
         [Route("/[controller]/Area/Increment{plusCode}/{key}/{password}/{changeAmount}/{expirationTimer}")]
         [Route("/[controller]/Area/Increment{plusCode}/{key}/{password}/{changeAmount}")]
-        public void IncrementSecureAreaData(string plusCode, string key, string password, double changeAmount, double? expirationTimer = null) {
+        public void IncrementSecureAreaData(string plusCode, string key, string password, double changeAmount, double? expirationTimer = null)
+        {
             Response.Headers.Add("X-noPerfTrack", "SecureData/Area/Increment" + plusCode + "/VALUESREMOVED");
             if (!DataCheck.IsInBounds(plusCode))
                 return;
