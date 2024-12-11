@@ -19,10 +19,12 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Threading.RateLimiting;
+using static PraxisCore.DbTables;
 
 namespace PraxisMapper
 {
-    public class Startup {
+    public class Startup
+    {
         string mapTilesEngine;
         bool usePerfTracker;
         bool useHeaderCheck;
@@ -56,7 +58,8 @@ namespace PraxisMapper
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services) {
+        public void ConfigureServices(IServiceCollection services)
+        {
             Console.WriteLine("Connecting to " + Configuration.GetValue<string>("dbMode"));
             BuildAndLoadDB();
 
@@ -73,7 +76,7 @@ namespace PraxisMapper
             Assembly asm = null;
             if (mapTilesEngine == "SkiaSharp")
                 asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesSkiaSharp.dll");
-            else if (mapTilesEngine == "ImageSharp") 
+            else if (mapTilesEngine == "ImageSharp")
                 asm = Assembly.LoadFrom(executionFolder + "/PraxisMapTilesImageSharp.dll");
 
             mapTiles = (IMapTiles)Activator.CreateInstance(asm.GetType("PraxisCore.MapTiles"));
@@ -83,19 +86,34 @@ namespace PraxisMapper
             MapTileSupport.MapTiles = mapTiles;
 
             if (usePlugins)
-                foreach (var potentialPlugin in Directory.EnumerateFiles(executionFolder + "/plugins", "*.dll")) {
-                    try {
+                foreach (var potentialPlugin in Directory.EnumerateFiles(executionFolder + "/plugins", "*.dll"))
+                {
+                    try
+                    {
                         var assembly = Assembly.LoadFile(potentialPlugin);
                         var types = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisPlugin)));
-                        GlobalPlugins.plugins.AddRange(types.Select(t => (IPraxisPlugin)Activator.CreateInstance(t)).ToList());
-                        var startupTypes = assembly.GetTypes().Where(t => t.IsAssignableTo(typeof(IPraxisStartup)));
-                        if (startupTypes.Any()) {
-                            foreach (var s in startupTypes) {
-                                try {
-                                    var startupMethod = s.GetMethod("Startup");
-                                    var results = startupMethod.Invoke(s, null);
+                        if (types.Any())
+                        {
+                            Log.WriteLog("Loading plugin " + Path.GetFileName(potentialPlugin));
+                            services.AddControllersWithViews().AddApplicationPart(assembly);
+
+                            foreach (var t in types)
+                            {
+                                try
+                                {
+                                    var startupMethod = t.GetMethod("Startup");
+                                    startupMethod.Invoke(t, null);
+
+                                    var styles = t.GetProperty("Styles").GetValue(t);
+                                    if (styles != null)
+                                    {
+                                        TagParser.InsertStyles(styles as List<StyleEntry>);
+                                    }
+
+                                    GlobalPlugins.plugins.Add((IPraxisPlugin)Activator.CreateInstance(t));
                                 }
-                                catch (Exception ex) {
+                                catch (Exception ex)
+                                {
                                     ErrorLogger.LogError(new Exception("Error thrown attempting to load " + potentialPlugin));
                                     while (ex.InnerException != null)
                                         ex = ex.InnerException;
@@ -103,16 +121,13 @@ namespace PraxisMapper
                                 }
                             }
                         }
-
-                        if (types.Any()) {
-                            Log.WriteLog("Loading plugin " + Path.GetFileName(potentialPlugin));
-                            services.AddControllersWithViews().AddApplicationPart(assembly);
-                        }
-                        else {
+                        else
+                        {
                             assembly = null;
                         }
                     }
-                    catch (Exception ex) {
+                    catch (Exception ex)
+                    {
                         //continue.
                         Log.WriteLog("Error loading " + potentialPlugin + ": " + ex.Message + "|" + ex.StackTrace);
                         ErrorLogger.LogError(ex);
@@ -124,18 +139,21 @@ namespace PraxisMapper
             TagParser.Initialize(Configuration.GetValue<bool>("ForceStyleDefaults"), mapTiles);
 
             //Start cleanup threads that fire every half hour.
-            System.Threading.Tasks.Task.Run(() => {
+            System.Threading.Tasks.Task.Run(() =>
+            {
                 using var db = new PraxisContext();
                 db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
                 db.ChangeTracker.AutoDetectChangesEnabled = false;
-                while (true) {
+                while (true)
+                {
                     PraxisAuthentication.DropExpiredEntries();
                     db.Database.ExecuteSqlRaw("DELETE FROM PlaceData WHERE expiration IS NOT NULL AND expiration < CURRENT_TIMESTAMP");
                     db.Database.ExecuteSqlRaw("DELETE FROM AreaData WHERE expiration IS NOT NULL AND expiration < CURRENT_TIMESTAMP");
                     db.Database.ExecuteSqlRaw("DELETE FROM PlayerData WHERE expiration IS NOT NULL AND expiration < CURRENT_TIMESTAMP");
                     //remember, don't delete map tiles here, since those track how many times they've been redrawn so the client knows when to ask for the image again.
 
-                    if (useAntiCheat) {
+                    if (useAntiCheat)
+                    {
                         List<string> toRemove = new List<string>();
                         foreach (var entry in PraxisAntiCheat.antiCheatStatus)
                             if (entry.Value.validUntil < DateTime.Now)
@@ -152,17 +170,20 @@ namespace PraxisMapper
         /// <summary>
         /// This function allows PraxisMapper to populate itself from a .pbf file in the same folder. Allows for the fastest setup of a functioning server.
         /// </summary>
-        private static void BuildAndLoadDB() {
+        private static void BuildAndLoadDB()
+        {
             using var db = new PraxisContext();
             db.MakePraxisDB(); //Does nothing if DB already exists, creates DB if not.
 
             //if the DB is empty, attmept to auto-load from a pbf file. This removes a couple of manual steps from smaller games, even if it takes a few extra minutes.
-            if (!db.Places.Any()) {
+            if (!db.Places.Any())
+            {
                 TagParser.Initialize(true, null); //Force the default styles in place, since we've created the DB and haven't yet started up a drawing plugin.
                 Log.WriteLog("No data loaded, attempting to auto-load");
                 var relationAsBounds = Configuration.GetValue<long>("useRelationForBounds");
                 var candidates = Directory.EnumerateFiles(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "*.pbf");
-                if (candidates.Any()) {
+                if (candidates.Any())
+                {
                     PbfReader reader = new PbfReader();
                     reader.outputPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\";
                     reader.saveToDB = true;
@@ -174,13 +195,15 @@ namespace PraxisMapper
                     db.SetServerBounds(NTSrelation.ElementGeometry);
                 }
             }
-         }
+        }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache) {
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCache cache)
+        {
             using var db = new PraxisContext();
 
-            if (env.IsDevelopment()) {
+            if (env.IsDevelopment())
+            {
                 app.UseDeveloperExceptionPage();
             }
 
@@ -197,11 +220,12 @@ namespace PraxisMapper
             if (useHeaderCheck)
                 app.UsePraxisHeaderCheck();
 
-            if (useAuthCheck) {
+            if (useAuthCheck)
+            {
                 app.UsePraxisAuthentication();
 
                 var allowList = Configuration.GetValue<string>("allowList");
-                foreach(var path in allowList.Split(","))
+                foreach (var path in allowList.Split(","))
                     PraxisAuthentication.whitelistedPaths.Add(path);
 
                 if (!PraxisAuthentication.whitelistedPaths.Any(p => p == "/Server/Gdpr"))
@@ -210,7 +234,8 @@ namespace PraxisMapper
                 PraxisAuthentication.admins = db.AuthenticationData.Where(a => a.isAdmin).Select(a => a.accountId).ToHashSet();
             }
 
-            if (useAntiCheat) {
+            if (useAntiCheat)
+            {
                 app.UsePraxisAntiCheat();
                 PraxisAntiCheat.expectedCount = db.AntiCheatEntries.Select(c => c.filename).Distinct().Count();
             }
@@ -226,11 +251,12 @@ namespace PraxisMapper
             if (usePerfTracker)
                 app.UsePraxisPerformanceTracker();
 
-            app.UseEndpoints(endpoints => {
+            app.UseEndpoints(endpoints =>
+            {
                 endpoints.MapControllers();
-            #if DEBUG
+#if DEBUG
                 endpoints.MapOpenApi();
-            #endif
+#endif
             });
 
             //Populate the memory cache with some data we won't edit until a restart occurs.
@@ -243,8 +269,10 @@ namespace PraxisMapper
             cache.Set<IPreparedGeometry>("serverBounds", serverBounds, entryOptions);
             cache.Set("saveMapTiles", Configuration.GetValue<bool>("saveMapTiles"));
 
-            System.Threading.Tasks.Task.Run(() => {
-                while (true) {
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                while (true)
+                {
                     ((MemoryCache)cache).Compact(.5);
                     System.Threading.Thread.Sleep(1800000); // 30 minutes in milliseconds. Most entries set to expire in 15 minutes.
                 }
