@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using NetTopologySuite.Geometries;
+using OsmSharp.IO.PBF;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,16 +11,24 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PraxisCore
 {
+
+    //TODO: offline data improvements to consider:
+    // Styles include the name of each entry, which makes editing offline entries easier.
+    // Do offline items get the privacyID, so that a client downloading new data can apply existing changes to new data correctly?
+    // (That Id is the OSM ID plus type. That's the proper unique connection, and its offline so it won't expose data to other players)
     public class OfflineData
     {
-        static object zipLock = new object();
+        static Lock zipLock = new Lock();
         public class OfflineDataV2
         {
             public string olc { get; set; } //PlusCode
+            public double dateGenerated { get; set; } // UTC in Unix time, easier for Godot to work with.
+            public int version { get; set; } = 2; // absence/null indicates version 1.
             public Dictionary<string, List<OfflinePlaceEntry>> entries { get; set; }
             public Dictionary<int, string> nameTable { get; set; } //id, name
         }
@@ -32,6 +41,7 @@ namespace PraxisCore
             public string p { get; set; } //Points, local to the given PlusCode. If human-readable, is string pairs, if not is base64 encoded integers.
             public double? size { get; set; } //Removed after sorting.
             public int? layerOrder { get; set; } //removed after sorting as well.
+            public long OsmId { get; set; } // can combine with gt to uniquely identify this item
         }
 
         public class OfflineDataV2Min//Still a Cell6 to draw, but minimized as much as possible.
@@ -236,7 +246,7 @@ namespace PraxisCore
                     //foreach (var place in placeData)
                     Parallel.ForEach(placeData, (place) => //we save data and re-order stuff after.
                     {
-                        var sizeOrder = place.DrawSizeHint; //TODO: add this in somewhere so I can order by size and run these in parallel.
+                        var sizeOrder = place.DrawSizeHint;
                         var geo = place.ElementGeometry.Intersection(area);
                         if (simplifyRes > 0)
                             geo = geo.Simplify(simplifyRes);
@@ -269,6 +279,7 @@ namespace PraxisCore
                             offline.p = coordSet;
                             offline.size = sizeOrder;
                             offline.layerOrder = styleEntry.PaintOperations.Min(p => p.LayerId);
+                            offline.OsmId = place.SourceItemID;
                             entries.Add(offline);
                         }
                     });
@@ -288,6 +299,7 @@ namespace PraxisCore
 
                 finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
 
+                finalData.dateGenerated = DateTime.UtcNow.ToUnixTime();
                 return finalData;
             }
             catch (MySqlException ex1)
