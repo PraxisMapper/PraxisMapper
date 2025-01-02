@@ -31,6 +31,16 @@ namespace PraxisCore.Styles
             //So I will re-order this to handle tertiary first, then the gameElements that might be buildings, then plain buildings, and the remaining elements after that.
             //This should mean that 60%+ of elements match in 6 checks or less. 
             //MapTiles: Roads of varying sizes and colors to match OSM colors
+            new StyleEntry() { MatchOrder = 9, Name ="tertiaryWalkable", StyleSet = "mapTiles", //This is MatchOrder 9 to pre-empt normal roads.
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                    new StylePaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "stroke", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
+                new StyleMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
+                new StyleMatchRule() { Key = "sidewalk", Value="both|left|right", MatchType="any"},
+            }},
             new StyleEntry() { MatchOrder = 10, Name ="tertiary", StyleSet = "mapTiles", //This is MatchOrder 10 because its one of the most common entries, is the correct answer 30% of the time.
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
@@ -39,7 +49,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>()
             {
                 new StyleMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
-                new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
+                new StyleMatchRule() { Key = "footway", Value="sidewalk|crossing", MatchType="not"},
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 20, Name ="university", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
@@ -54,8 +64,8 @@ namespace PraxisCore.Styles
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "landuse", Value = "retail|commercial", MatchType = "or"},
-                    new StyleMatchRule() {Key="building", Value="retail|commercial", MatchType="or" },
-                    new StyleMatchRule() {Key="shop", Value="*", MatchType="or" }
+                    new StyleMatchRule() { Key = "building", Value="retail|commercial", MatchType="or" },
+                    new StyleMatchRule() { Key = "shop", Value="*", MatchType="or" }
             }},
             new StyleEntry() { IsGameElement = true, MatchOrder = 40, Name ="concert hall", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
