@@ -39,6 +39,7 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>()
             {
                 new StyleMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
+                new StyleMatchRule() { Key = "footway", Value="sidewalk|crossing", MatchType="not"},
                 new StyleMatchRule() { Key = "sidewalk", Value="both|left|right", MatchType="any"},
             }},
             new StyleEntry() { MatchOrder = 10, Name ="tertiary", StyleSet = "mapTiles", //This is MatchOrder 10 because its one of the most common entries, is the correct answer 30% of the time.
