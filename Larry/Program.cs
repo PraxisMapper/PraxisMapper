@@ -402,7 +402,7 @@ namespace Larry
             {
                 try
                 {
-                    PlaceExport.LoadToDatabase(filename, config["processingMode"], bounds);
+                    PlaceExport.LoadToDatabase(filename, config["processingMode"], bounds, config["TagParserStyleSet"]);
                     File.Move(filename, filename + "done");
                 }
                 catch (Exception ex)
