@@ -827,7 +827,7 @@ namespace PraxisCore.PbfReader
                 waiting.Add(tasked);
             }
 
-            Task.WaitAll(waiting.ToArray());
+            Task.WaitAll(waiting);
 
             //Now, we should save the IndexInfo list to disk and sort it into sub-indexes
             var indexList = indexInfos.OrderBy(i => i.blockId).ThenBy(i => i.groupId).ToList();
@@ -1559,7 +1559,7 @@ namespace PraxisCore.PbfReader
                     }));
                 }
 
-                Task.WaitAll(relList.ToArray());
+                Task.WaitAll(relList);
 
                 //Moved this logic here to free up RAM by removing blocks once we're done reading data from the hard drive. Should result in fewer errors at the ProcessReaderResults step.
                 //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort. Small RAM trade for 30% speed increase.
@@ -1821,7 +1821,7 @@ namespace PraxisCore.PbfReader
                 if (r != null)
                     relList.Add(Task.Run(() => { var e = GeometrySupport.ConvertOsmEntryToPlace(r, styleSet); if (e != null) elements.Add(e); }));
             }
-            Task.WaitAll(relList.ToArray());
+            Task.WaitAll(relList);
 
             if (elements.IsEmpty)
                 return 0;
