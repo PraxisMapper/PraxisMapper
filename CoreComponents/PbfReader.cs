@@ -341,6 +341,7 @@ namespace PraxisCore.PbfReader
                     //New optimizations: if there's nothing tagged in this group, just skip it.
                     //if none of these entries match via tagparser, skip the threading/geometry part.
                     strings = blockData.stringtable.s;
+                    noMatches = true;
                     if (itemType == 1) //Nodes do this slightly differently than other groups.
                     {
                         if (group.dense.keys_vals.Count == group.dense.id.Count)
@@ -350,7 +351,6 @@ namespace PraxisCore.PbfReader
                         }
                         entryCounter = 0;
                         tempTags = new TagsCollection(10);
-                        noMatches = true;
                         for (int i = 0; i < group.dense.keys_vals.Count; i++)
                         {
                             if (group.dense.keys_vals[i] == 0)
@@ -454,13 +454,19 @@ namespace PraxisCore.PbfReader
                     }
 
                     geoData = GetGeometryFromGroup(thisBlockId, group, true);
-                    group = null;
+                    //group = null;
                     changed = 0;
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null && !geoData.IsEmpty) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
                         placeIds = geoData.Where(g => g != null).Select(g => g.Id).ToList();
+
+                        if (placeIds.Count == 0)
+                        {
+                            Log.WriteLog("Processed a group but got no results in " + sw.Elapsed.ToString());
+                                continue;
+                        }
 
                         Dictionary<long, DbTables.Place> currentData = null;
                         if (saveToDB && !skipExisting)
