@@ -307,13 +307,13 @@ namespace PraxisCore {
             bool OrMatched = false;
             int orRuleCount = 0;
 
-
             //Step 1: check all the rules against these tags.
             //The * value is required for all the rules, so check it first.
-            foreach(var entry in tpe.StyleMatchRules)
+            string actualvalue = "";
+            bool isPresent = false;
+            foreach (var entry in tpe.StyleMatchRules)
             {
-                string actualvalue = "";
-                bool isPresent = tags.TryGetValue(entry.Key, out actualvalue);
+                isPresent = tags.TryGetValue(entry.Key, out actualvalue);
 
                 switch (entry.MatchType)
                 {
@@ -449,6 +449,10 @@ namespace PraxisCore {
             if (tagsO == null || tagsO.Count == 0)
                 return "";
             var retVal = tagsO.FirstOrDefault(t => t.Key == "name");
+            if (retVal == null)
+                retVal = tagsO.FirstOrDefault(t => t.Key == "name:en");
+            if (retVal == null)
+                retVal = tagsO.FirstOrDefault(t => t.Key.StartsWith("name:"));
             if (retVal == null)
                 return "";
 

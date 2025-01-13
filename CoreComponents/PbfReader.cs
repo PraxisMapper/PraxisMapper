@@ -1,7 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Logging.Abstractions;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.GeometriesGraph;
+using OsmSharp.API;
 using OsmSharp.Complete;
 using OsmSharp.Tags;
 using ProtoBuf;
@@ -13,7 +15,10 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
+using System.Runtime;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -270,21 +275,11 @@ namespace PraxisCore.PbfReader
         {
             //Most of this might be handlable by updating ProcessReaderResults and a few smaller tweaks to the ProcessFile loop?
 
-            //TODO: Make this the new main 'load' call, and meet all criteria below
-            //Reasons:
-            //This will both INSERT and UPDATE the database from a PBF file. (OK)
-            //This runs from start to finish, so there's a better idea of progress at a glance. (OK)
-            //Better fits the goal of simplicity for users (one call does it all) instead of requiring a multiple-step setup. (OK)
-            //Still needs to be fast. (Generally OK, not explicitly timed vs old 'parse-to-geomdata/bulkload/create indexes/PreTag' path but isn't bad.)
-
-            //Requirements/changes pending:
-            //This one does reprocess data if a mode is set (Center is done, Minimize should be automatic, ExpandPoints is done)
-
-            //TODO: determine if LastChanceRead is still required, and lowresourcemode along with it (and high resource mode too)
-
             //This one starts from the start and works it ways towards the end, one block/group at a time, directly against the database.
             //NOTE: styleSet is used to determine what counts as matched/unmatched, but matched elements are pre-tagged against all style sets.
 
+            //Don't do this. We hit OOM before this can catch up and clear memory pressure.
+            //GCSettings.LatencyMode = GCLatencyMode.LowLatency;
 
             var dbS = new PraxisContext();
             var skipExisting = !dbS.Places.Any();
@@ -310,9 +305,24 @@ namespace PraxisCore.PbfReader
             else if (importBounds != null)
                 bounds = importBounds.EnvelopeInternal;
 
+            //Moved these out of the foreach loop so we dont declare them new every pass.
+            var sw = Stopwatch.StartNew();
+            int thisBlockId = 0;
+            long groupMin = 0;
+            long groupMax = 0;
+            PrimitiveGroup group;
+            int changed = 0;
+            ConcurrentBag<ICompleteOsmGeo> geoData;
+            List<long> placeIds;
+            PrimitiveBlock blockData;
+            List<byte[]> strings;
+            TagsCollection tempTags = new TagsCollection();
+            var entryCounter = 0;
+            bool noMatches = true;
             for (var block = nextBlockId; block < Bcount; block++)
             {
-                var blockData = GetBlock(block);
+                blockData = GetBlock(block);
+
                 int nextGroup = 0;
                 int itemType = 0;
                 if (block < firstWayBlock)
@@ -324,12 +334,108 @@ namespace PraxisCore.PbfReader
 
                 for (int groupId = nextGroup; groupId < blockData.primitivegroup.Count; groupId++)
                 {
-                    var sw = Stopwatch.StartNew();
+                    sw.Restart();
+                    thisBlockId = block;
+                    group = blockData.primitivegroup[groupId];
+                    tempTags.Clear();
+                    //New optimizations: if there's nothing tagged in this group, just skip it.
+                    //if none of these entries match via tagparser, skip the threading/geometry part.
+                    strings = blockData.stringtable.s;
+                    if (itemType == 1) //Nodes do this slightly differently than other groups.
+                    {
+                        if (group.dense.keys_vals.Count == group.dense.id.Count)
+                        {
+                            Log.WriteLog("Skipped untagged node group in " + sw.Elapsed.ToString());
+                            continue;
+                        }
+                        entryCounter = 0;
+                        tempTags = new TagsCollection(10);
+                        noMatches = true;
+                        for (int i = 0; i < group.dense.keys_vals.Count; i++)
+                        {
+                            if (group.dense.keys_vals[i] == 0)
+                            {
+                                if (tempTags.Count > 0)
+                                {
+                                    if (EntryMatchesSet(tempTags))
+                                    {
+                                        noMatches = false;
+                                        break;
+                                    }
+                                    tempTags.Clear();
+                                }
+
+                                entryCounter++; //skip to next entry.
+                                continue;
+                            }
+
+                            var tag = new Tag(
+                                    Encoding.UTF8.GetString(strings[group.dense.keys_vals[i++]]), //i++ returns i, but increments the value.
+                                    Encoding.UTF8.GetString(strings[group.dense.keys_vals[i]])
+                                );
+                            tempTags.Add(tag);
+                        }
+                        if (noMatches)
+                        {
+                            Log.WriteLog("Skipped matchless block " + block + " group " + groupId + " in " + sw.Elapsed.ToString());
+                            continue;
+                        }
+                    }
+                    else if (itemType == 2)
+                    {
+                        for (int i = 0; i < group.ways.Count; i++)
+                        {
+                            for (int k = 0; k < group.ways[i].keys.Count; k++)
+                            {
+                                var tag = new Tag(
+                                    Encoding.UTF8.GetString(strings[(int)group.ways[i].keys[k]]), //i++ returns i, but increments the value.
+                                    Encoding.UTF8.GetString(strings[(int)group.ways[i].vals[k]])
+                                );
+                                tempTags.Add(tag);
+                            }
+                            if (EntryMatchesSet(tempTags))
+                            {
+                                noMatches = false;
+                                break;
+                            }
+                            tempTags.Clear();                            
+                        }
+                        if (noMatches)
+                        {
+                            Log.WriteLog("Skipped matchless block " + block + " group " + groupId + " in " + sw.Elapsed.ToString());
+                            continue;
+                        }
+                    }
+                    else if (itemType == 3)
+                    {
+                        for (int i = 0; i < group.relations.Count; i++)
+                        {
+                            for (int k = 0; k < group.relations[i].keys.Count; k++)
+                            {
+                                var tag = new Tag(
+                                    Encoding.UTF8.GetString(strings[(int)group.relations[i].keys[k]]), //i++ returns i, but increments the value.
+                                    Encoding.UTF8.GetString(strings[(int)group.relations[i].vals[k]])
+                                );
+                                tempTags.Add(tag);
+                            }
+                            if (EntryMatchesSet(tempTags))
+                            {
+                                noMatches = false;
+                                break;
+                            }
+                            tempTags.Clear();
+                        }
+                        if (noMatches)
+                        {
+                            Log.WriteLog("Skipped matchless block " + block + " group " + groupId + " in " + sw.Elapsed.ToString());
+                            continue;
+                        }
+                    }
+
+
                     using var db = new PraxisContext(); //create a new one each group to free up RAM faster
                     db.ChangeTracker.AutoDetectChangesEnabled = false; //automatic change tracking disabled for performance, we only track the stuff we actually change.
                     db.Database.SetCommandTimeout(600);
-                    long groupMin = 0;
-                    long groupMax = 0;
                     switch (itemType)
                     {
                         case 1:
@@ -347,24 +453,21 @@ namespace PraxisCore.PbfReader
                             break;
                     }
 
-                    int thisBlockId = block;
-                    var group = blockData.primitivegroup[groupId];
-                    var geoData = GetGeometryFromGroup(thisBlockId, group, true);
-                    int changed = 0;
+                    geoData = GetGeometryFromGroup(thisBlockId, group, true);
+                    group = null;
+                    changed = 0;
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null && !geoData.IsEmpty) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
-                        var placeIds = geoData.Where(g => g != null).Select(g => g.Id).ToList();
+                        placeIds = geoData.Where(g => g != null).Select(g => g.Id).ToList();
 
                         Dictionary<long, DbTables.Place> currentData = null;
                         if (saveToDB && !skipExisting)
                             currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
-                        var processed = geoData.AsParallel().Where(g => g != null).Select(g =>
+                        List<DbTables.Place> processed = geoData.AsParallel().Where(g => g != null).Select(g =>
                         {
                             var place = GeometrySupport.ConvertOsmEntryToPlace(g, styleSet);
-                            //if (place != null)
-                            //Place.PreTag(place); //already called in the convert function.
 
                             if (processingMode == "center")
                                 place.ElementGeometry = place.ElementGeometry.Centroid;
@@ -399,24 +502,26 @@ namespace PraxisCore.PbfReader
                         }
                         else
                         {
-                            if (processingMode ==  "offline")
+                            if (processingMode == "offline")
                             {
-                                var entries = processed.Where(p => p != null).Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet)).ToList();
+                                Log.WriteLog("Converting items to offline format");
+                                var entries = processed.Where(p => p != null).Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet));//.ToList();
+                                Log.WriteLog("Items converted");
                                 db.OfflinePlaces.AddRange(entries);
                             }
                             else
-                            foreach (var newEntry in processed)
-                            {
-                                if (newEntry == null)
-                                    continue;
-
-                                if (skipExisting || !currentData.TryGetValue(newEntry.SourceItemID, out var existing))
-                                    db.Places.Add(newEntry);
-                                else
+                                foreach (var newEntry in processed)
                                 {
-                                    Place.UpdateChanges(existing, newEntry, db);
+                                    if (newEntry == null)
+                                        continue;
+
+                                    if (skipExisting || !currentData.TryGetValue(newEntry.SourceItemID, out var existing))
+                                        db.Places.Add(newEntry);
+                                    else
+                                    {
+                                        Place.UpdateChanges(existing, newEntry, db);
+                                    }
                                 }
-                            }
 
                             //check if data is removed - NOPE. This wipes out existing data if we're using a different styleSet or source file. 
                             //TODO Delete needs to be its own pass, matching everything on an single extract file. 
@@ -425,7 +530,9 @@ namespace PraxisCore.PbfReader
 
                             try
                             {
+                                Log.WriteLog("Writing to DB");
                                 changed = db.SaveChanges(); //This count includes tags and placedata.
+                                Log.WriteLog("DB Save Completed");
                             }
                             catch (Exception ex)
                             {
@@ -437,7 +544,7 @@ namespace PraxisCore.PbfReader
                                     ex = ex.InnerException;
                                     message = ex.Message;
                                 }
-                                Log.WriteLog("Error saving Block " + block + " Group " + group + ": " + message);
+                                Log.WriteLog("Error saving Block " + block + " Group " + groupId + ": " + message);
 
                                 //NOTE: copy/pasting save to file here as a way to quick-recover this data later.
                                 //TOOD: functionalize this later.
@@ -459,6 +566,7 @@ namespace PraxisCore.PbfReader
 
                         }
                     }
+                    geoData = null;
                     SaveCurrentBlockAndGroup(block, groupId);
                     sw.Stop();
                     Log.WriteLog("Block " + block + " Group " + groupId + ": " + changed + (itemType == 1 ? " Node" : itemType == 2 ? " Way" : " Relation") + " and Tag entries modified in " + sw.Elapsed);
@@ -473,6 +581,7 @@ namespace PraxisCore.PbfReader
                         break; //skip all later groups for nodes, they're all handled at once.
                     }
                 }
+                blockData = null;
                 nextBlockId++;
             }
 
@@ -675,9 +784,14 @@ namespace PraxisCore.PbfReader
                 byte[] thisblob = new byte[bh.datasize];
                 fs.ReadExactly(thisblob, 0, bh.datasize);
 
+                //Action<byte[], int> process = (blob, count) => ProcessBlockForIndex(blob, count);
+
+                //waiting.Add(Task.Run(process(thisblob, blockCounter));
+                //ProcessBlockForIndex(thisblob, blockCounter);
+
                 var passedBC = blockCounter;
                 //NOTE: this might be a good place to look at variable capture instead of letting thisblock get captured by
-                //the lambda itself
+                //the lambda itself. Perhaps this is a good candidate for an action.
                 var tasked = Task.Run(() =>  //Threading makes this run approx. twice as fast.
                 {
                     var pb2 = DecodeBlock(thisblob);
@@ -717,6 +831,35 @@ namespace PraxisCore.PbfReader
 
             sw.Stop();
             Log.WriteLog("File indexed in " + sw.Elapsed);
+        }
+
+        private List<IndexInfo> ProcessBlockForIndex(byte[] thisblob, int passedBC)
+        {
+            List<IndexInfo> indexInfos = new List<IndexInfo>();
+            var pb2 = DecodeBlock(thisblob);
+
+            for (int i = 0; i < pb2.primitivegroup.Count; i++) //Planet.osm uses several primitivegroups per block, extracts usually use one.
+            {
+                var group = pb2.primitivegroup[i];
+                {
+                    if (group.ways.Count > 0)
+                    {
+                        //wayCounter++;
+                        indexInfos.Add(new IndexInfo(passedBC, i, 2, group.ways.First().id, group.ways.Last().id));
+                    }
+                    else if (group.relations.Count > 0)
+                    {
+                        //relationCounter++;
+                        indexInfos.Add(new IndexInfo(passedBC, i, 3, group.relations.First().id, group.relations.Last().id));
+                    }
+                    else if (group.dense != null)
+                    {
+                        indexInfos.Add(new IndexInfo(passedBC, i, 1, group.dense.id[0], group.dense.id.Sum()));
+                    }
+                }
+            }
+            pb2 = null;
+            return indexInfos;
         }
 
         private void LoadIndex()
@@ -1134,7 +1277,7 @@ namespace PraxisCore.PbfReader
                     if (ignoreUnmatched)
                     {
                         if (!EntryMatchesSet(tc))
-                            continue; 
+                            continue;
                     }
 
                     OsmSharp.Node n = new OsmSharp.Node();
@@ -1828,15 +1971,19 @@ namespace PraxisCore.PbfReader
                     var data = GC.GetGCMemoryInfo();
                     long currentRAM = proc.PrivateMemorySize64;
                     long systemRAM = data.TotalAvailableMemoryBytes;
-
                     if (currentRAM > (systemRAM * .8))
                     {
-                        Log.WriteLog("Force-dumping half of block cache to minimize swap-file thrashing");
+                        Log.WriteLog("Force-dumping half of block cache to minimize swap-file thrashing at " + DateTime.Now.ToString());
                         foreach (var block in activeBlocks)
                             if (Random.Shared.Next() % 2 == 0)
                                 activeBlocks.TryRemove(block.Key, out _);
 
+                        Log.WriteLog("Percentage of runtime spent in GC: " + data.PauseTimePercentage.ToString());
+                        Log.WriteLog("Objects pending finalization: " + data.FinalizationPendingCount.ToString());
+                        Log.WriteLog("Pinned objects: " + data.PinnedObjectsCount.ToString());
+
                         GC.Collect();
+                        Log.WriteLog("Force-dump and GC completed at " + DateTime.Now.ToString());
                     }
                     Thread.Sleep(30000);
                 }
