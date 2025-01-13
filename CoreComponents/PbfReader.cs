@@ -321,7 +321,7 @@ namespace PraxisCore.PbfReader
             bool noMatches = true;
             for (var block = nextBlockId; block < Bcount; block++)
             {
-                blockData = GetBlock(block);
+                blockData = GetBlock(block, false);
 
                 int nextGroup = 0;
                 int itemType = 0;
@@ -889,7 +889,7 @@ namespace PraxisCore.PbfReader
         /// </summary>
         /// <param name="blockId">the ID for the block in question</param>
         /// <returns>the PrimitiveBlock requested</returns>
-        private PrimitiveBlock GetBlock(long blockId)
+        private PrimitiveBlock GetBlock(long blockId, bool persistInRam = true)
         {
             //Track that this entry was requested for this processing block.
             //If the block is in memory, return it.
@@ -904,7 +904,8 @@ namespace PraxisCore.PbfReader
                     if (!activeBlocks.TryGetValue(blockId, out results))
                     {
                         results = GetBlockFromFile(blockId);
-                        activeBlocks.TryAdd(blockId, results);
+                        if (persistInRam)
+                            activeBlocks.TryAdd(blockId, results);
                         accessedBlocks.TryAdd(blockId, true);
                     }
                 });
