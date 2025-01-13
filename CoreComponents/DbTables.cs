@@ -37,7 +37,7 @@ namespace PraxisCore {
             public byte[] TileData { get; set; } //png binary data.
             public string StyleSet { get; set; } //Which styleSet this maptile was drawn with. Allows for multiple layers and arbitrary types.
             public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Set to CURRENT_TIMESTAMP to exipre.
-            [Column(TypeName = "geography")]
+            [Column(TypeName = "geometry")]
             [Required]
             public Geometry AreaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
             public long GenerationID { get; set; } = 0; //How many times this tile has been redrawn. Used by client to know when to get new tiles.
@@ -133,7 +133,7 @@ namespace PraxisCore {
             public byte[] TileData { get; set; } //png binary data.
             public string StyleSet { get; set; } // which style set was used to draw this tile. Allows for layers and varying data sets.
             public DateTime ExpireOn { get; set; } //assume that a tile needs regenerated if passed this timestamp. Set to CURRENT_TIMESTAMP to expire.
-            [Column(TypeName = "geography")]
+            [Column(TypeName = "geometry")]
             [Required]
             public Geometry AreaCovered { get; set; } //This lets us find and expire map tiles if the data under them changes.
             public long GenerationID { get; set; } = 0; //How many times this tile has been redrawn. Used by client to know when to get new tiles.
@@ -149,7 +149,7 @@ namespace PraxisCore {
             public long Id { get; set; } //Internal primary key, don't pass this to clients.
             public long SourceItemID { get; set; } //Try to use PrivacyId instead of this where possible to avoid connecting players to locations.
             public int SourceItemType { get; set; } //1: node, 2: way, 3: relation
-            [Column(TypeName = "geography")]
+            [Column(TypeName = "geometry")]
             [Required]
             public Geometry ElementGeometry { get; set; }
             public ICollection<PlaceTags> Tags { get; set; } = new List<PlaceTags>();   
@@ -183,7 +183,7 @@ namespace PraxisCore {
             public long Id { get; set; } //Internal primary key, don't pass this to clients.
             public long SourceItemID { get; set; } //Try to use PrivacyId instead of this where possible to avoid connecting players to locations.
             public int SourceItemType { get; set; } //1: node, 2: way, 3: relation
-            [Column(TypeName = "geography")]
+            [Column(TypeName = "geometry")]
             [Required]
             public Geometry ElementGeometry { get; set; }
             public string StyleName { get; set; } //this IS persisted here, set on load.          
@@ -250,7 +250,7 @@ namespace PraxisCore {
             public string DataKey { get; set; }
             public DateTime? Expiration { get; set; } //optional. If value is in the past, ignore this data.
             [Required]
-            [Column(TypeName = "geography")]
+            [Column(TypeName = "geometry")]
             public Geometry AreaCovered { get; set; } //PlusCode listed as a geometry object for index/search purposes.
             public byte[] IvData { get; set; } //Only set if data is encrypted.
             public byte[] DataValue { get; set; } //Holds byte data for both normal and encrypted entries. 

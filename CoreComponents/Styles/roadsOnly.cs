@@ -31,7 +31,7 @@ namespace PraxisCore.Styles
             //So I will re-order this to handle tertiary first, then the gameElements that might be buildings, then plain buildings, and the remaining elements after that.
             //This should mean that 60%+ of elements match in 6 checks or less. 
             //MapTiles: Roads of varying sizes and colors to match OSM colors
-            new StyleEntry() { MatchOrder = 10, Name ="tertiary", StyleSet = "mapTiles", //This is MatchOrder 10 because its one of the most common entries, is the correct answer 30% of the time.
+            new StyleEntry() { MatchOrder = 10, Name ="tertiary", StyleSet = "roadsOnly", //This is MatchOrder 10 because its one of the most common entries, is the correct answer 30% of the time.
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "stroke", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                     new StylePaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "stroke", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
@@ -41,7 +41,7 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key = "highway", Value = "tertiary|unclassified|residential|tertiary_link|service|road", MatchType = "any" },
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 150, Name ="trail", StyleSet = "mapTiles",
+            new StyleEntry() { IsGameElement = true, MatchOrder = 150, Name ="trail", StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "F0E68C", FillOrStroke = "stroke", LineWidthDegrees=0.000025F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom14DegPerPixelX }
                 },
@@ -49,7 +49,7 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
                     new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }},
-            new StyleEntry() { MatchOrder = 170, Name ="parking", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 170, Name ="parking", StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MinDrawRes = ConstantValues.zoom12DegPerPixelX}
                 },
@@ -58,7 +58,7 @@ namespace PraxisCore.Styles
             },
 
             //Roads of varying sizes and colors to match OSM colors
-            new StyleEntry() { MatchOrder = 270, Name ="motorwayFilled", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 270, Name ="motorwayFilled", StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidthDegrees=0.000125F, LinePattern= "solid", LayerId = 92},
                     new StylePaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidthDegrees=0.000155F, LinePattern= "solid", LayerId = 93}
@@ -70,7 +70,7 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
             //Roads of varying sizes and colors to match OSM colors
-            new StyleEntry() { MatchOrder = 280, Name ="motorway", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 280, Name ="motorway", StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "e892a2", FillOrStroke = "fill", LineWidthDegrees=0.000125F, LinePattern= "solid", LayerId = 92},
                     new StylePaint() { HtmlColorCode = "dc2a67", FillOrStroke = "fill", LineWidthDegrees=0.000155F, LinePattern= "solid", LayerId = 93}
@@ -80,7 +80,7 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key = "highway", Value = "motorway|trunk|motorway_link|trunk_link", MatchType = "any" },
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new StyleEntry() { MatchOrder = 290, Name ="primaryFilled", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 290, Name ="primaryFilled", StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "fill", LineWidthDegrees=0.000025F, LinePattern= "solid", LayerId = 94, },
                     new StylePaint() { HtmlColorCode = "a06b00", FillOrStroke = "fill", LineWidthDegrees=0.00004275F, LinePattern= "solid", LayerId = 95, }
@@ -91,7 +91,7 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
-            new StyleEntry() { MatchOrder = 300, Name ="primary", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 300, Name ="primary", StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "fcd6a4", FillOrStroke = "stroke", LineWidthDegrees=0.00005F, LinePattern= "solid", LayerId = 94, MaxDrawRes = ConstantValues.zoom6DegPerPixelX /2 },
                     new StylePaint() { HtmlColorCode = "a06b00", FillOrStroke = "stroke", LineWidthDegrees=0.000085F, LinePattern= "solid", LayerId = 95, MaxDrawRes = ConstantValues.zoom6DegPerPixelX /2}
@@ -101,7 +101,7 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key = "highway", Value = "primary|primary_link", MatchType = "any" },
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new StyleEntry() { MatchOrder = 310, Name ="secondaryFilled",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 310, Name ="secondaryFilled",  StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "f7fabf", FillOrStroke = "fill", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,},
                     new StylePaint() { HtmlColorCode = "707d05", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,}
@@ -112,7 +112,7 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
                 new StyleMatchRule() { Key="area", Value="yes", MatchType="equals"}
             }},
-            new StyleEntry() { MatchOrder = 320, Name ="secondary",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 320, Name ="secondary",  StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "f7fabf", FillOrStroke = "stroke", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 96, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,},
                     new StylePaint() { HtmlColorCode = "707d05", FillOrStroke = "stroke", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 97, MaxDrawRes = ConstantValues.zoom8DegPerPixelX,}
@@ -122,7 +122,7 @@ namespace PraxisCore.Styles
                 new StyleMatchRule() { Key = "highway", Value = "secondary|secondary_link", MatchType = "any" },
                 new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"},
             }},
-            new StyleEntry() { MatchOrder = 330, Name ="tertiaryFilled", StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 330, Name ="tertiaryFilled", StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "ffffff", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 98, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
                     new StylePaint() { HtmlColorCode = "8f8f8f", FillOrStroke = "fill", LineWidthDegrees=0.0000375F, LinePattern= "solid", LayerId = 99, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2}
@@ -150,14 +150,14 @@ namespace PraxisCore.Styles
 
             //NOTE: hiding elements of a given type is done by drawing those elements in a transparent color
             //My default set wants to draw things that haven't yet been identified, so I can see what needs improvement or matched by a rule.
-            new StyleEntry() { MatchOrder = 9999, Name ="background",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 9999, Name ="background",  StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 1001 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "*", Value = "*", MatchType = "none" }} },
 
-            new StyleEntry() { MatchOrder = 10000, Name ="unmatched",  StyleSet = "mapTiles",
+            new StyleEntry() { MatchOrder = 10000, Name ="unmatched",  StyleSet = "roadsOnly",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 1000 }
                 },
