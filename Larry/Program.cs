@@ -402,7 +402,7 @@ namespace Larry
             {
                 try
                 {
-                    PlaceExport.LoadToDatabase(filename, config["processingMode"], bounds);
+                    PlaceExport.LoadToDatabase(filename, config["processingMode"], bounds, config["TagParserStyleSet"]);
                     File.Move(filename, filename + "done");
                 }
                 catch (Exception ex)
@@ -592,8 +592,8 @@ namespace Larry
             polygons.AddRange(notShrinking);
             polygons.AddRange(resultGeo.Geometries.Select(g => (Polygon)g).ToList());
 
+            Log.WriteLog("Saving processed shaped to PMD file...");
             var outputData = new PlaceExport("oceanData.pmd");
-            outputData.Open();
             int c = 1;
             //NEXT: save to a place item.
             foreach (var poly in polygons)
