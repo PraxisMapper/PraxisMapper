@@ -510,9 +510,9 @@ namespace PraxisCore.PbfReader
                         {
                             if (processingMode == "offline")
                             {
-                                Log.WriteLog("Converting items to offline format");
+                                //Log.WriteLog("Converting items to offline format");
                                 var entries = processed.Where(p => p != null).Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet));//.ToList();
-                                Log.WriteLog("Items converted");
+                                //Log.WriteLog("Items converted");
                                 db.OfflinePlaces.AddRange(entries);
                             }
                             else
@@ -536,9 +536,9 @@ namespace PraxisCore.PbfReader
 
                             try
                             {
-                                Log.WriteLog("Writing to DB");
+                                //Log.WriteLog("Writing to DB");
                                 changed = db.SaveChanges(); //This count includes tags and placedata.
-                                Log.WriteLog("DB Save Completed");
+                                //Log.WriteLog("DB Save Completed");
                             }
                             catch (Exception ex)
                             {
@@ -1564,6 +1564,7 @@ namespace PraxisCore.PbfReader
                 //Moved this logic here to free up RAM by removing blocks once we're done reading data from the hard drive. Should result in fewer errors at the ProcessReaderResults step.
                 //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort. Small RAM trade for 30% speed increase.
                 if (!keepAllBlocksInRam)
+                    activeBlocks.TryRemove(blockId, out _); //We dont need the current one.
                     foreach (var blockRead in activeBlocks)
                     {
                         if (!accessedBlocks.ContainsKey(blockRead.Key))
