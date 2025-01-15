@@ -21,6 +21,8 @@ namespace PraxisCore
     // Styles include the name of each entry, which makes editing offline entries easier.
     // Do offline items get the privacyID, so that a client downloading new data can apply existing changes to new data correctly?
     // (That Id is the OSM ID plus type. That's the proper unique connection, and its offline so it won't expose data to other players)
+    //TODO: I will need to be able to pull from either the Places or OfflinePlaces tables, depending.
+    // Odds are high that Larry will use the OfflinePlaces table, as its the bulk processor app, and PraxisMapper will use Places as normal.
     public class OfflineData
     {
         static Lock zipLock = new Lock();
@@ -205,6 +207,145 @@ namespace PraxisCore
             }
         }
 
+        public static void MakeOfflineJsonFromOfflineTable(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.OfflinePlace> places = null)
+        {
+            //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
+            if (bounds == null)
+            {
+                var dbB = new PraxisContext();
+                var settings = dbB.ServerSettings.FirstOrDefault();
+                bounds = new GeoArea(settings.SouthBound, settings.WestBound, settings.NorthBound, settings.EastBound).ToPolygon();
+                dbB.Dispose();
+            }
+
+            var area = plusCode.ToPolygon();
+            if (!area.Intersects(bounds))
+                return;
+
+            if (plusCode.Length < 6)
+            {
+                if (!PraxisCore.Place.DoOfflinePlacesExist(plusCode.ToGeoArea(), places))
+                    return;
+
+                if (plusCode.Length == 4)
+                {
+                    var folder2 = string.Concat(filePath, plusCode.AsSpan(0, 2));
+                    var file = string.Concat(folder2, "\\", plusCode.AsSpan(0, 4), ".zip");
+                    Directory.CreateDirectory(folder2);
+                    if (!File.Exists(file))
+                    {
+                        inner_zip = new ZipArchive(File.Create(file), ZipArchiveMode.Update);
+                    }
+                    else
+                        inner_zip = ZipFile.Open(file, ZipArchiveMode.Update);
+
+                    try
+                    {
+                        //Far future TODO: Work out out to start loading the next set of places from the DB while processing data for the current set
+                        //OR find a way to consistently improve MariaDB performance reading places where there's huge ones.
+                        Console.WriteLine("Loading places for " + plusCode);
+                        Stopwatch load = Stopwatch.StartNew();
+                        places = Place.GetOfflinePlaces(plusCode.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell8));
+                        //For the really big areas, if we crop it once here, should save about 3 minutes of processing later.
+                        foreach (var place in places)
+                            place.ElementGeometry = place.ElementGeometry.Intersection(area);
+                        load.Stop();
+                        Console.WriteLine("Places for " + plusCode + " loaded in " + load.Elapsed);
+                    }
+                    catch (Exception ex)
+                    {
+                        //Do nothing, we'll load places up per Cell6 if we can't pull the whole Cell4 into RAM.
+                        Console.WriteLine("Places for " + plusCode + " wouldn't load, doing it per Cell6");
+                        places = null;
+                    }
+
+                    //This block isnt limited by IO, and will suffer from swapping threads constantly.
+                    ParallelOptions po = new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount };
+                    Parallel.ForEach(GetCellCombos(), po, pair =>
+                    {
+                        MakeOfflineJsonFromOfflineTable(plusCode + pair, bounds, saveToFile, inner_zip, places);
+                    });
+
+                    bool removeFile = false;
+                    if (inner_zip.Entries.Count == 0)
+                        removeFile = true;
+
+                    if (inner_zip != null)
+                        inner_zip.Dispose();
+
+                    if (removeFile)
+                        File.Delete(filePath + plusCode.Substring(0, 2) + "\\" + plusCode.Substring(0, 4) + ".zip");
+
+                    return;
+                }
+                else
+                {
+                    var doneCell2s = File.ReadAllText("lastOfflineEntry.txt");
+                    if (doneCell2s.Contains(plusCode) && plusCode != "")
+                        return;
+
+                    foreach (var pair in GetCellCombos())
+                        MakeOfflineJsonFromOfflineTable(plusCode + pair, bounds, saveToFile, inner_zip, places);
+                    File.AppendAllText("lastOfflineEntry.txt", "|" + plusCode);
+                    return;
+                }
+            }
+
+            var folder = string.Concat(filePath, plusCode.Substring(0, 2));
+            Directory.CreateDirectory(folder);
+
+            var sw = Stopwatch.StartNew();
+            var finalData = MakeEntriesFromOffline(plusCode, string.Join(",", styles), places);
+            if (finalData == null || (finalData.nameTable == null && finalData.entries.Count == 0))
+                return;
+
+            JsonSerializerOptions jso = new JsonSerializerOptions();
+            jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+            string data = JsonSerializer.Serialize(finalData, jso);
+
+            if (saveToFile)
+            {
+                lock (zipLock)
+                {
+                    Stream entryStream;
+                    var entry = inner_zip.GetEntry(plusCode + ".json");
+                    if (entry != null)
+                    {
+                        entryStream = entry.Open();
+                        OfflineDataV2 existingData = JsonSerializer.Deserialize<OfflineDataV2>(entryStream);
+                        var dataSize = data.Length;
+                        finalData = MergeOfflineFiles(finalData, existingData);
+                        data = JsonSerializer.Serialize(finalData, jso); //Need to re-serialize it here, THATS the issue.
+                        if (data.Length < dataSize)
+                        {
+                            Debugger.Break();
+                            Console.WriteLine("Data got smaller after merging! check this out!");
+                        }
+
+                        entryStream.Position = 0;
+                        entryStream.SetLength(data.Length);
+                    }
+                    else
+                    {
+                        entry = inner_zip.CreateEntry(plusCode + ".json", CompressionLevel.Optimal);
+                        entryStream = entry.Open();
+                    }
+
+                    using (var streamWriter = new StreamWriter(entryStream))
+                        streamWriter.Write(data);
+                    entryStream.Close();
+                    entryStream.Dispose();
+                }
+
+                sw.Stop();
+                Log.WriteLog("Created and saved offline data for " + plusCode + " in " + sw.Elapsed);
+            }
+            else
+            {
+                GenericData.SetAreaData(plusCode, "offlineV2", data);
+            }
+        }
+
         public static OfflineDataV2 MakeEntries(string plusCode, string stylesToUse, List<DbTables.Place> places = null)
         {
             var counter = 1;
@@ -307,6 +448,116 @@ namespace PraxisCore
                 counter++;
                 System.Threading.Thread.Sleep(1000 * counter);
                 return MakeEntries(plusCode, stylesToUse, places);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("Caught unexpected error: " + ex.Message);
+                return null;
+            }
+        }
+
+        public static OfflineDataV2 MakeEntriesFromOffline(string plusCode, string stylesToUse, List<DbTables.OfflinePlace> places = null)
+        {
+            var counter = 1;
+            try
+            {
+                using var db = new PraxisContext();
+                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                db.ChangeTracker.AutoDetectChangesEnabled = false;
+
+                var cell = plusCode.ToGeoArea();
+                var area = plusCode.ToPolygon();
+
+                var styles = stylesToUse.Split(",");
+
+                //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
+                //will make larger files but the output would be a closer match to the server's images.
+
+                var min = cell.Min;
+                Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
+                var nameIdCounter = 0;
+
+                if (!PraxisCore.Place.DoOfflinePlacesExist(cell, places))
+                    return null;
+
+                var finalData = new OfflineDataV2();
+                finalData.olc = plusCode;
+                finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
+                foreach (var style in styles)
+                {
+                    var placeData = PraxisCore.Place.GetOfflinePlaces(cell, source: places);
+
+                    if (placeData.Count == 0)
+                        continue;
+                    List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
+                    var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
+                    foreach (var name in names)
+                        nametable.Add(name, ++nameIdCounter);
+
+                    //foreach (var place in placeData)
+                    Parallel.ForEach(placeData, (place) => //we save data and re-order stuff after.
+                    {
+                        var sizeOrder = place.DrawSizeHint;
+                        var geo = place.ElementGeometry.Intersection(area);
+                        if (simplifyRes > 0)
+                            geo = geo.Simplify(simplifyRes);
+                        if (geo.IsEmpty)
+                            return; // continue; //Probably an element on the border thats getting pulled in by buffer.
+
+                        int? nameID = null;
+                        if (!string.IsNullOrWhiteSpace(place.Name))
+                        {
+                            if (nametable.TryGetValue(place.Name, out var nameval))
+                                nameID = nameval;
+                        }
+
+                        var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
+
+                        //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
+                        //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
+                        var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
+                        foreach (var coordSet in coordSets)
+                        {
+                            if (coordSet == "")
+                                //if (coordSet.Count == 0)
+                                continue;
+
+                            var offline = new OfflinePlaceEntry();
+                            offline.nid = nameID;
+                            offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
+
+                            offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+                            offline.p = coordSet;
+                            offline.size = sizeOrder;
+                            offline.layerOrder = styleEntry.PaintOperations.Min(p => p.LayerId);
+                            offline.OsmId = place.SourceItemID;
+                            entries.Add(offline);
+                        }
+                    });
+                    //TODO: determine why one south america place was null.
+                    //Smaller number layers get drawn first, and bigger places get drawn first.
+                    finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.layerOrder).ThenByDescending(e => e.size).ToList();
+                    foreach (var e in finalData.entries[style])
+                    {
+                        //Dont save this to the output file.
+                        e.size = null;
+                        e.layerOrder = null;
+                    }
+                }
+
+                if (finalData.entries.Count == 0)
+                    return null;
+
+                finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
+
+                finalData.dateGenerated = DateTime.UtcNow.ToUnixTime();
+                return finalData;
+            }
+            catch (MySqlException ex1)
+            {
+                counter++;
+                System.Threading.Thread.Sleep(1000 * counter);
+                return MakeEntriesFromOffline(plusCode, stylesToUse, places);
             }
             catch (Exception ex)
             {

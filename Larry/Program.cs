@@ -261,7 +261,7 @@ namespace Larry
                 //var randomPlace = PraxisCore.Place.RandomPoint(bounds);
                 //GetPlaces(randomPlace.Substring(0, 4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
 
-                OfflineData.MakeOfflineJson("");
+                OfflineData.MakeOfflineJsonFromOfflineTable(""); //Larry should prefer this, since thats its purpose.
                 File.Delete("lastOfflineEntry.txt");
             }
 
