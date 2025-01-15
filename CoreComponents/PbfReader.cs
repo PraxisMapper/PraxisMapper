@@ -1,11 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.Extensions.Logging.Abstractions;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.GeometriesGraph;
-using OsmSharp.API;
 using OsmSharp.Complete;
+using OsmSharp.Geo;
 using OsmSharp.Tags;
+using PraxisCore.Support;
 using ProtoBuf;
 using System;
 using System.Collections.Concurrent;
@@ -15,10 +13,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net;
-using System.Runtime;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,7 +36,7 @@ namespace PraxisCore.PbfReader
         //public bool onlyMatchedAreas = false; //if true, only process geometry if the tags come back with IsGamplayElement== true;
         public string processingMode = "normal"; //normal: use geometry as it exists. center: save the center point of any geometry provided instead of its actual value. minimize: reduce accuracy to save storage space. offline: data is only going to be used to make separate files, not run in a live server.
         public string styleSet = "mapTiles"; //which style set to use when parsing entries
-        public string[] styleSets;
+        public string[] styleSets = ["mapTiles"];
         public bool keepIndexFiles = true;
         public bool splitByStyleSet = false;
 
@@ -312,7 +307,7 @@ namespace PraxisCore.PbfReader
             long groupMax = 0;
             PrimitiveGroup group;
             int changed = 0;
-            ConcurrentBag<ICompleteOsmGeo> geoData;
+            ConcurrentBag<FundamentalOsm> geoData;
             List<long> placeIds;
             PrimitiveBlock blockData;
             List<byte[]> strings;
@@ -453,14 +448,14 @@ namespace PraxisCore.PbfReader
                             break;
                     }
 
-                    geoData = GetGeometryFromGroup(thisBlockId, group, true);
+                    geoData = GetGeometryFromGroupAsCoords(thisBlockId, group, true);
                     //group = null;
                     changed = 0;
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
                     if (geoData != null && !geoData.IsEmpty) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
                     {
-                        placeIds = geoData.Where(g => g != null).Select(g => g.Id).ToList();
+                        placeIds = geoData.Where(g => g != null).Select(g => g.entryId).ToList();
 
                         if (placeIds.Count == 0)
                         {
@@ -473,7 +468,7 @@ namespace PraxisCore.PbfReader
                             currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
                         List<DbTables.Place> processed = geoData.AsParallel().Where(g => g != null).Select(g =>
                         {
-                            var place = GeometrySupport.ConvertOsmEntryToPlace(g, styleSet);
+                            var place = GeometrySupport.ConvertFundamentalOsmToPlace(g, styleSet);
 
                             if (processingMode == "center")
                                 place.ElementGeometry = place.ElementGeometry.Centroid;
@@ -511,7 +506,7 @@ namespace PraxisCore.PbfReader
                             if (processingMode == "offline")
                             {
                                 //Log.WriteLog("Converting items to offline format");
-                                var entries = processed.Where(p => p != null).Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet));//.ToList();
+                                var entries = processed.Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet));//.ToList();
                                 //Log.WriteLog("Items converted");
                                 db.OfflinePlaces.AddRange(entries);
                             }
@@ -895,7 +890,7 @@ namespace PraxisCore.PbfReader
         /// </summary>
         /// <param name="blockId">the ID for the block in question</param>
         /// <returns>the PrimitiveBlock requested</returns>
-        private PrimitiveBlock GetBlock(long blockId, bool persistInRam = true)
+        public PrimitiveBlock GetBlock(long blockId, bool persistInRam = true)
         {
             //Track that this entry was requested for this processing block.
             //If the block is in memory, return it.
@@ -1581,6 +1576,72 @@ namespace PraxisCore.PbfReader
             }
         }
 
+        public ConcurrentBag<FundamentalOsm> GetGeometryFromGroupAsCoords(int blockId, PrimitiveGroup primgroup, bool onlyTagMatchedEntries = false)
+        {
+            //This grabs the chosen block, populates everything in it to an OsmSharp.Complete object and returns that list
+            ConcurrentBag<FundamentalOsm> results = new ConcurrentBag<FundamentalOsm>();
+            try
+            {
+                //Attempting to clear up some memory slightly faster, but this should be redundant.
+                relList.Clear();
+                var block = GetBlock(blockId);
+                if (primgroup.relations != null && primgroup.relations.Count > 0)
+                {
+                    //Some relation blocks can hit 22GB of RAM on their own. Low-resource machines will fail, and should roll into the LastChance path automatically.
+                    foreach (var r in primgroup.relations)
+                        relList.Add(Task.Run(() => { var rel = MakeCompleteRelationAsCoords(r.id, onlyTagMatchedEntries, block); results.Add(rel); totalProcessEntries++; }));
+                }
+                else if (primgroup.ways != null && primgroup.ways.Count > 0)
+                {
+                    foreach (var r in primgroup.ways)
+                    {
+                        relList.Add(Task.Run(() => { results.Add(MakeCompleteWayCoords(r, block.stringtable.s, onlyTagMatchedEntries)); totalProcessEntries++; }));
+                    }
+                }
+                else
+                {
+                    //Useful node lists are so small, they lose performance from splitting each step into 1 task per entry.
+                    //Inline all that here as one task
+                    relList.Add(Task.Run(() =>
+                    {
+                        try
+                        {
+                            var nodes = GetTaggedNodesFromBlockAsCoords(block, onlyTagMatchedEntries);
+                            if (nodes != null)
+                            {
+                                totalProcessEntries += nodes.Count;
+                                results = new ConcurrentBag<FundamentalOsm>(nodes); //.Select(n => new FundamentalOsm([[n.GetCoordinate()]], null, new TagsCollection(n.Tags), 1, n.Id.Value)));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.WriteLog("Processing node failed: " + ex.Message, Log.VerbosityLevels.Errors);
+                        }
+                    }));
+                }
+
+                Task.WaitAll(relList);
+
+                //Moved this logic here to free up RAM by removing blocks once we're done reading data from the hard drive. Should result in fewer errors at the ProcessReaderResults step.
+                //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort. Small RAM trade for 30% speed increase.
+                if (!keepAllBlocksInRam)
+                    activeBlocks.TryRemove(blockId, out _); //We dont need the current one.
+                foreach (var blockRead in activeBlocks)
+                {
+                    if (!accessedBlocks.ContainsKey(blockRead.Key))
+                        activeBlocks.TryRemove(blockRead.Key, out _);
+                }
+                accessedBlocks.Clear();
+                return results;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("Error getting geometry: " + ex.Message, Log.VerbosityLevels.Errors);
+                throw; //In order to reprocess this block in last-chance mode.
+                       //return null;
+            }
+        }
+
         //Taken from OsmSharp (MIT License)
         /// <summary>
         /// Turns a PBF's dense stored data into a standard latitude or longitude value in degrees.
@@ -2019,6 +2080,323 @@ namespace PraxisCore.PbfReader
                     return true;
             }
             return false;
+        }       
+
+        //Using Coordinate arrays is very slightly faster than CompleteOsmGeo items,
+        //but I want all the performance I can get on huge files.
+        public FundamentalOsm LoadOneWayAsCoordsFromFile(string filename, long wayId)
+        {
+            Log.WriteLog("Starting to load one way from file as coords.");
+            try
+            {
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
+                PrepareFile(filename);
+
+                var way = MakeCompleteWayAsCoords(wayId, ignoreUnmatched: false);
+                Close();
+                sw.Stop();
+                Log.WriteLog("Processing completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
+                return way;
+            }
+            catch (Exception ex)
+            {
+                while (ex.InnerException != null)
+                    ex = ex.InnerException;
+                Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
+                return null;
+            }
+        }
+
+        private List<FundamentalOsm> GetTaggedNodesFromBlockAsCoords(PrimitiveBlock block, bool ignoreUnmatched = false)
+        {
+            List<FundamentalOsm> taggedNodes = new List<FundamentalOsm>(block.primitivegroup.Sum(p => p.dense.keys_vals.Count) - block.primitivegroup.Sum(p => p.dense.id.Count) / 2); //precise count
+            for (int b = 0; b < block.primitivegroup.Count; b++)
+            {
+                nodeGroupsProcessed++;
+                var dense = block.primitivegroup[b].dense;
+
+                //Shortcut: if dense.keys.count == dense.id.count, there's no tagged nodes at all here (0 means 'no keys', and all 0's means every entry has no keys)
+                if (dense.keys_vals.Count == dense.id.Count)
+                    continue;
+
+                var granularity = block.granularity;
+                var lat_offset = block.lat_offset;
+                var lon_offset = block.lon_offset;
+                var stringData = block.stringtable.s;
+
+                //sort out tags ahead of time.
+                int entryCounter = 0;
+                List<Tuple<int, Tag>> idKeyVal = new List<Tuple<int, Tag>>((dense.keys_vals.Count - dense.id.Count) / 2);
+                for (int i = 0; i < dense.keys_vals.Count; i++)
+                {
+                    if (dense.keys_vals[i] == 0)
+                    {
+                        entryCounter++; //skip to next entry.
+                        continue;
+                    }
+
+                    idKeyVal.Add(
+                        Tuple.Create(entryCounter,
+                        new Tag(
+                            Encoding.UTF8.GetString(stringData[dense.keys_vals[i++]]), //i++ returns i, but increments the value.
+                            Encoding.UTF8.GetString(stringData[dense.keys_vals[i]])
+                        )
+                    ));
+                }
+                var decodedTags = idKeyVal.ToLookup(k => k.Item1, v => v.Item2);
+                var lastTaggedNode = entryCounter;
+
+                var index = -1;
+                long nodeId = 0;
+                long lat = 0;
+                long lon = 0;
+                foreach (var denseNode in dense.id)
+                {
+                    index++;
+                    nodeId += denseNode;
+                    lat += dense.lat[index];
+                    lon += dense.lon[index];
+
+                    if (!decodedTags[index].Any())
+                        continue;
+
+                    var tc = new OsmSharp.Tags.TagsCollection(decodedTags[index]); //Tags are needed first, so pull them out here for the ignoreUnmatched check.
+                    if (ignoreUnmatched)
+                    {
+                        if (!EntryMatchesSet(tc))
+                            continue;
+                    }
+                    
+                    Coordinate c = new Coordinate(DecodeLatLon(lon, lon_offset, granularity), DecodeLatLon(lat, lat_offset, granularity));
+                    FundamentalOsm n = new FundamentalOsm([[c]], null, tc, 1, nodeId);                    
+
+                    //if bounds checking, drop nodes that aren't needed.
+                    if (bounds == null || (c.Y >= bounds.MinY && c.Y <= bounds.MaxY && c.X >= bounds.MinX && c.X <= bounds.MaxX))
+                        taggedNodes.Add(n);
+
+                    if (index >= lastTaggedNode)
+                        break;
+                }
+            }
+            return taggedNodes;
+        }
+
+        private FundamentalOsm MakeCompleteWayCoords(Way way, List<byte[]> stringTable, bool ignoreUnmatched = false, bool skipTags = false)
+        {
+            try
+            {
+                TagsCollection tags = null;
+                //We always need to apply tags here, so we can either skip after (if IgnoredUmatched is set) or to pass along tag values correctly.
+                if (!skipTags)
+                {
+                    tags = GetTags(stringTable, way.keys, way.vals);
+
+                    if (ignoreUnmatched)
+                    {
+                        if (!EntryMatchesSet(tags))
+                            return null; //This is 'unmatched' by all our style sets, skip processing this entry.
+                    }
+                }
+
+                CompleteWay finalway = new CompleteWay();
+                finalway.Id = way.id;
+                finalway.Tags = tags;
+
+                //NOTES:
+                //This gets all the entries we want from each node, then loads those all in 1 pass per referenced block/group.
+                //This is significantly faster than doing a GetBlock per node when 1 block has mulitple entries
+                //its a little complicated but a solid performance boost.
+                int entryCount = way.refs.Count;
+                long idToFind = 0; //more deltas 
+                Dictionary<int, IndexInfo> nodeInfoEntries = new Dictionary<int, IndexInfo>(entryCount); //hint(position in array), IndexInfo
+                int hint = -1; //last result for previous node.
+                Dictionary<long, int> nodesByIndexInfo = new Dictionary<long, int>(entryCount); //nodeId, hint(Position in array)
+
+                for (int i = 0; i < entryCount; i++)
+                {
+                    idToFind += way.refs[i];
+                    var blockInfo = FindBlockInfoForNode(idToFind, out var index, hint);
+                    hint = index;
+                    nodeInfoEntries.TryAdd(index, blockInfo);
+                    nodesByIndexInfo.TryAdd(idToFind, index);
+                }
+                var nodesByBlockGroup = nodesByIndexInfo.ToLookup(k => k.Value, v => v.Key); //hint(Position in array), nodeIDs
+
+                finalway.Nodes = new OsmSharp.Node[entryCount];
+                //Each way is already in its own thread, I think making each of those fire off 1 thread per node block referenced is excessive.
+                //and may well hurt performance in most cases due to overhead and locking the concurrentdictionary than it gains.
+                //Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>(entryCount);
+                Dictionary<long, Coordinate> AllNodes = new Dictionary<long, Coordinate>(entryCount);
+                foreach (var block in nodesByBlockGroup)
+                {
+                    var someNodes = GetAllNeededNodesInBlockGroup(nodeInfoEntries[block.Key], block.OrderBy(b => b).ToArray());
+                    foreach (var n in someNodes)
+                        AllNodes.Add(n.Key, n.Value.GetCoordinate());
+                }
+
+                //Optimization: If any of these nodes are inside our bounds, continue. If ALL of them are outside, skip processing this entry.
+                //This can result in a weird edge case where an object has a LINE that goes through our boundaries, but we ignore it because no NODES are in-bounds.
+                if (bounds != null) //we have bounds, and we aren't loading this as part of a relation, so lets make sure it's in bounds.
+                    if (!AllNodes.Any(n => bounds.MaxY >= n.Value.Y && bounds.MinY <= n.Value.Y && bounds.MaxX >= n.Value.X && bounds.MinX <= n.Value.X))
+                        return null;
+
+                //Iterate over the list of referenced Nodes again, but this time to assign created nodes to the final results.
+                Coordinate[] c = new Coordinate[way.refs.Count];
+                idToFind = 0;
+                for (int i = 0; i < entryCount; i++)
+                {
+                    idToFind += way.refs[i]; //delta coding.
+                    c[i] = AllNodes[idToFind];
+                }
+
+                var result = new FundamentalOsm([c], null, tags, 2, way.id);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("MakeCompleteWayAsCoords failed: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
+                return null; //Failed to get way, probably because a node didn't exist in the file.
+            }
+        }
+
+        private FundamentalOsm MakeCompleteWayAsCoords(long wayId, int hint = -1, bool ignoreUnmatched = false, bool skipTags = false) //skipTags is for relations, where the way's tags don't matter.
+        {
+            try
+            {
+                var wayBlockValues = FindBlockInfoForWay(wayId, out var position, hint);
+
+                PrimitiveBlock wayBlock = GetBlock(wayBlockValues.blockId);
+                var wayPrimGroup = wayBlock.primitivegroup[wayBlockValues.groupId];
+                var way = FindWayInPrimGroup(wayPrimGroup.ways, wayId);
+                if (way == null)
+                    return null; //way wasn't in the block it was supposed to be in.
+
+                return MakeCompleteWayCoords(way, wayBlock.stringtable.s, ignoreUnmatched, skipTags);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("MakeCompleteWay failed: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
+                return null; //Failed to get way, probably because a node didn't exist in the file.
+            }
+        }
+
+        public FundamentalOsm LoadOneRelationFromFileAsCoords(string filename, long relationId)
+        {
+            Log.WriteLog("Starting to load one relation as coords from file.");
+            try
+            {
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
+                PrepareFile(filename);
+
+                var relation = MakeCompleteRelationAsCoords(relationId);
+                Close();
+                sw.Stop();
+                Log.WriteLog("Processing completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
+                return relation;
+            }
+            catch (Exception ex)
+            {
+                while (ex.InnerException != null)
+                    ex = ex.InnerException;
+                Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
+                return null;
+            }
+        }
+
+        public FundamentalOsm MakeCompleteRelationAsCoords(long relationId, bool ignoreUnmatched = false, PrimitiveBlock relationBlock = null)
+        {
+            try
+            {
+                var indexInfo = FindBlockInfoForRelation(relationId);
+
+                if (relationBlock == null)
+                    relationBlock = GetBlock(indexInfo.blockId);
+
+                var relPrimGroup = relationBlock.primitivegroup[indexInfo.groupId];
+                var rel = FindRelationInPrimGroup(relPrimGroup.relations, relationId);
+                var stringData = relationBlock.stringtable.s;
+                bool canProcess = false;
+                //sanity check - if this relation doesn't have inner or outer role members,
+                //its not one i can process.
+                foreach (var role in rel.roles_sid)
+                {
+                    string roleType = Encoding.UTF8.GetString(stringData[role]);
+                    if (roleType == "inner" || roleType == "outer")
+                    {
+                        canProcess = true; //I need at least one outer, and inners require outers.
+                        break;
+                    }
+                }
+
+                if (!canProcess)
+                    return null;
+
+
+                TagsCollection tags = GetTags(stringData, rel.keys, rel.vals);
+                //TODO: test and move this logic to allow PBFReader to handle multiple style sets at once.
+                if (ignoreUnmatched)
+                {
+                    if (!EntryMatchesSet(tags))
+                        return null; //This is 'unmatched' by all our style sets, skip processing this entry.
+                }
+
+                List<Coordinate[]> outers = new List<Coordinate[]>();
+                List<Coordinate[]> inners = new List<Coordinate[]>();
+
+                //If I only want elements that show up in the map, and exclude areas I don't currently match,
+                //I have to knows my tags BEFORE doing the rest of the processing.
+                //CompleteRelation r = new CompleteRelation();
+                //r.Id = relationId;
+                //r.Tags = tags;
+
+                int capacity = rel.memids.Count;
+                //r.Members = new CompleteRelationMember[capacity];
+                int hint = -1;
+
+                bool inBounds = false;
+                long idToFind = 0;
+                for (int i = 0; i < capacity; i++)
+                {
+                    idToFind += rel.memids[i]; //memIds is delta-encoded
+                    if (rel.types[i] != Relation.MemberType.WAY)
+                        continue;
+                    var role = Encoding.UTF8.GetString(stringData[rel.roles_sid[i]]);
+                    if (role != "inner" && role != "outer")
+                        continue;
+                    
+                    var wayKey = FindBlockInfoForWay(idToFind, out int indexPosition, hint);
+                    hint = indexPosition;
+                    var way = MakeCompleteWayAsCoords(idToFind, hint, false, true);
+                    if (way == null)
+                        return null;
+
+                    if (role == "inner")
+                        inners.Add(way.outers[0]);
+                    else
+                        outers.Add(way.outers[0]);
+
+                    if (!inBounds)
+                        if (bounds == null || (way != null && way.outers[0].Any(n => bounds.MaxY >= n.Y && bounds.MinY <= n.Y && bounds.MaxX >= n.X && bounds.MinX <= n.X)))
+                            inBounds = true;
+                }
+
+                if (!inBounds)
+                    return null;
+
+                FundamentalOsm results = new FundamentalOsm(outers.ToArray(), inners.ToArray(), tags, 3, rel.id);
+
+                //Some memory cleanup slightly early, in an attempt to free up RAM faster.
+                rel = null;
+                return results;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("relation failed:" + ex.Message, Log.VerbosityLevels.Errors);
+                return null;
+            }
         }
     }
 }

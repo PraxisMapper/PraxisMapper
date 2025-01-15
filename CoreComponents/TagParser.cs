@@ -2,6 +2,7 @@
 using OsmSharp;
 using OsmSharp.Complete;
 using OsmSharp.Tags;
+using PraxisCore.Support;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -433,6 +434,17 @@ namespace PraxisCore {
             if (geo.Tags.Count == 0)
                 return "";
             var retVal = geo.Tags.GetValue("name");
+            if (retVal == null)
+                retVal = "";
+
+            return retVal;
+        }
+
+        public static string GetName(FundamentalOsm geo)
+        {
+            if (geo.tags.Count == 0)
+                return "";
+            var retVal = geo.tags.GetValue("name");
             if (retVal == null)
                 retVal = "";
 
