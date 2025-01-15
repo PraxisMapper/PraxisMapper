@@ -427,10 +427,6 @@ namespace PraxisCore.PbfReader
                         }
                     }
 
-
-                    using var db = new PraxisContext(); //create a new one each group to free up RAM faster
-                    db.ChangeTracker.AutoDetectChangesEnabled = false; //automatic change tracking disabled for performance, we only track the stuff we actually change.
-                    db.Database.SetCommandTimeout(600);
                     switch (itemType)
                     {
                         case 1:
@@ -462,12 +458,11 @@ namespace PraxisCore.PbfReader
                             Log.WriteLog("Processed a group but got no results in " + sw.Elapsed.ToString());
                                 continue;
                         }
-
-                        Dictionary<long, DbTables.Place> currentData = null;
-                        if (saveToDB && !skipExisting)
-                            currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
-                        List<DbTables.Place> processed = geoData.AsParallel().Where(g => g != null).Select(g =>
+                        
+                        List<DbTables.Place> processed = geoData.AsParallel().Select(g =>
                         {
+                            if (g == null)
+                                return null;
                             var place = GeometrySupport.ConvertFundamentalOsmToPlace(g, styleSet);
 
                             if (processingMode == "center")
@@ -475,7 +470,7 @@ namespace PraxisCore.PbfReader
                             else if (processingMode == "expandPoints")
                             {
                                 if (place.SourceItemType == 1)
-                                    place.ElementGeometry = place.ElementGeometry.Buffer(ConstantValues.resolutionCell8 / 2);
+                                    place.ElementGeometry = place.ElementGeometry.Buffer(ConstantValues.resolutionCell8 / 2); //TODO: cell10 resolution?
                             }
 
                             return place;
@@ -503,6 +498,9 @@ namespace PraxisCore.PbfReader
                         }
                         else
                         {
+                            using var db = new PraxisContext(); //create a new one each group to free up RAM faster
+                            db.ChangeTracker.AutoDetectChangesEnabled = false; //automatic change tracking disabled for performance, we only track the stuff we actually change.
+                            db.Database.SetCommandTimeout(600);
                             if (processingMode == "offline")
                             {
                                 //Log.WriteLog("Converting items to offline format");
@@ -511,6 +509,10 @@ namespace PraxisCore.PbfReader
                                 db.OfflinePlaces.AddRange(entries);
                             }
                             else
+                            {
+                                Dictionary<long, DbTables.Place> currentData = null;
+                                if (!skipExisting)
+                                    currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
                                 foreach (var newEntry in processed)
                                 {
                                     if (newEntry == null)
@@ -523,7 +525,7 @@ namespace PraxisCore.PbfReader
                                         Place.UpdateChanges(existing, newEntry, db);
                                     }
                                 }
-
+                            }
                             //check if data is removed - NOPE. This wipes out existing data if we're using a different styleSet or source file. 
                             //TODO Delete needs to be its own pass, matching everything on an single extract file. 
                             //var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
@@ -1589,13 +1591,13 @@ namespace PraxisCore.PbfReader
                 {
                     //Some relation blocks can hit 22GB of RAM on their own. Low-resource machines will fail, and should roll into the LastChance path automatically.
                     foreach (var r in primgroup.relations)
-                        relList.Add(Task.Run(() => { var rel = MakeCompleteRelationAsCoords(r.id, onlyTagMatchedEntries, block); results.Add(rel); totalProcessEntries++; }));
+                        relList.Add(Task.Run(() => { var rel = MakeCompleteRelationAsCoords(r.id, onlyTagMatchedEntries, block); if (rel != null) { results.Add(rel); totalProcessEntries++; } }));
                 }
                 else if (primgroup.ways != null && primgroup.ways.Count > 0)
                 {
                     foreach (var r in primgroup.ways)
                     {
-                        relList.Add(Task.Run(() => { results.Add(MakeCompleteWayCoords(r, block.stringtable.s, onlyTagMatchedEntries)); totalProcessEntries++; }));
+                        relList.Add(Task.Run(() => { var way = MakeCompleteWayCoords(r, block.stringtable.s, onlyTagMatchedEntries); if (way != null) { results.Add(way); totalProcessEntries++; } }));
                     }
                 }
                 else
@@ -1828,7 +1830,7 @@ namespace PraxisCore.PbfReader
                     var wayGroupsLeft = wayIndex.Count(w => w.blockId > nextBlockId);
                     var nodeGroupsLeft = nodeIndex.Count(w => w.blockId > nextBlockId);
                     var groupsDone = timeListRelations.Count + timeListWays.Count + nodeGroupsProcessed;
-                    Log.WriteLog("Current stats:");
+                    Log.WriteLog("Current stats (" + DateTime.Now.ToString() + "):");
                     Log.WriteLog("Groups completed this run: " + groupsDone);
                     Log.WriteLog("Remaining groups to process: " + relationGroupsLeft + " relations, " + wayGroupsLeft + " ways, " + nodeGroupsLeft + " nodes");
                     Log.WriteLog("Processing tasks: " + relList.Count(r => !r.IsCompleted));
