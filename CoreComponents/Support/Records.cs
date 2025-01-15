@@ -1,8 +1,8 @@
 ﻿using NetTopologySuite.Geometries;
+using OsmSharp.Tags;
 using System;
 using System.Collections.Generic;
 using static PraxisCore.DbTables;
-using static PraxisCore.Standalone.StandaloneDbTables;
 
 namespace PraxisCore.Support
 {
@@ -12,5 +12,8 @@ namespace PraxisCore.Support
     public readonly record struct AreaInfo(string name, string style, Guid privacyId);
     public readonly record struct AreaDetail(string plusCode, AreaInfo data);
     public readonly record struct AreaDetailAll(string plusCode, List<AreaInfo> data);
+
+    //This one will replace the OsmCompleteGeo class and slightly boost performance reading PBF files.
+    public record class FundamentalOsm(Coordinate[][] outers, Coordinate[][] inners, TagsCollection tags, int entryType, long entryId);
 
 }
