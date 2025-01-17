@@ -486,7 +486,7 @@ namespace PraxisCore.PbfReader
                             db.OfflinePlaces.AddRange(processedO);
                             try
                             {
-                                var saved = db.SaveChanges();
+                                changed = db.SaveChanges();
                             }
                             catch (Exception ex)
                             {
