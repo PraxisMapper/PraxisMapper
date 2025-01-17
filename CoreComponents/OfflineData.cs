@@ -41,8 +41,8 @@ namespace PraxisCore
             public int tid { get; set; } //terrain id, which style entry this place is
             public int gt { get; set; } //geometry type. 1 = point, 2 = line OR hollow shape, 3 = filled shape.
             public string p { get; set; } //Points, local to the given PlusCode. If human-readable, is string pairs, if not is base64 encoded integers.
-            public double? size { get; set; } //Removed after sorting.
-            public int? layerOrder { get; set; } //removed after sorting as well.
+            public double? s { get; set; } //size, Removed after sorting.
+            public int? lo { get; set; } //layer order.
             public long OsmId { get; set; } // can combine with gt to uniquely identify this item
         }
 
@@ -152,8 +152,11 @@ namespace PraxisCore
                 }
             }
 
-            var folder = string.Concat(filePath, plusCode.Substring(0, 2));
-            Directory.CreateDirectory(folder);
+            if (plusCode.Length == 2)
+            {
+                var folder = string.Concat(filePath, plusCode); //.Substring(0, 2)
+                Directory.CreateDirectory(folder);
+            }
 
             var sw = Stopwatch.StartNew();
             var finalData = MakeEntries(plusCode, string.Join(",", styles), places);
@@ -247,8 +250,8 @@ namespace PraxisCore
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetOfflinePlaces(plusCode.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell8));
                         //For the really big areas, if we crop it once here, should save about 3 minutes of processing later.
-                        foreach (var place in places)
-                            place.ElementGeometry = place.ElementGeometry.Intersection(area);
+                        //foreach (var place in places)
+                        Parallel.ForEach(places, (place) => place.ElementGeometry = place.ElementGeometry.Intersection(area));
                         load.Stop();
                         Console.WriteLine("Places for " + plusCode + " loaded in " + load.Elapsed);
                     }
@@ -291,8 +294,11 @@ namespace PraxisCore
                 }
             }
 
-            var folder = string.Concat(filePath, plusCode.Substring(0, 2));
-            Directory.CreateDirectory(folder);
+            if (plusCode.Length == 2)
+            {
+                var folder = string.Concat(filePath, plusCode); //.Substring(0, 2)
+                Directory.CreateDirectory(folder);
+            }
 
             var sw = Stopwatch.StartNew();
             var finalData = MakeEntriesFromOffline(plusCode, string.Join(",", styles), places);
@@ -351,9 +357,9 @@ namespace PraxisCore
             var counter = 1;
             try
             {
-                using var db = new PraxisContext();
-                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                //using var db = new PraxisContext();
+                //db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                //db.ChangeTracker.AutoDetectChangesEnabled = false;
 
                 var cell = plusCode.ToGeoArea();
                 var area = plusCode.ToPolygon();
@@ -379,7 +385,7 @@ namespace PraxisCore
 
                     if (placeData.Count == 0)
                         continue;
-                    List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
+                    ConcurrentBag<OfflinePlaceEntry> entries = new ConcurrentBag<OfflinePlaceEntry>();
                     var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
                     foreach (var name in names)
                         nametable.Add(name, ++nameIdCounter);
@@ -418,20 +424,20 @@ namespace PraxisCore
 
                             offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
                             offline.p = coordSet;
-                            offline.size = sizeOrder;
-                            offline.layerOrder = styleEntry.PaintOperations.Min(p => p.LayerId);
+                            offline.s = sizeOrder;
+                            offline.lo = styleEntry.PaintOperations.Min(p => p.LayerId);
                             offline.OsmId = place.SourceItemID;
                             entries.Add(offline);
                         }
                     });
                     //TODO: determine why one south america place was null.
                     //Smaller number layers get drawn first, and bigger places get drawn first.
-                    finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.layerOrder).ThenByDescending(e => e.size).ToList();
+                    finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.lo).ThenByDescending(e => e.s).ToList();
                     foreach (var e in finalData.entries[style])
                     {
                         //Dont save this to the output file.
-                        e.size = null;
-                        e.layerOrder = null;
+                        e.s = null;
+                        e.lo = null;
                     }
                 }
 
@@ -456,14 +462,15 @@ namespace PraxisCore
             }
         }
 
+        //NOTE: Take any optimizations made here, and apply to the MakeEntries function so they stay on par.
         public static OfflineDataV2 MakeEntriesFromOffline(string plusCode, string stylesToUse, List<DbTables.OfflinePlace> places = null)
         {
             var counter = 1;
             try
             {
-                using var db = new PraxisContext();
-                db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-                db.ChangeTracker.AutoDetectChangesEnabled = false;
+                //using var db = new PraxisContext();
+                //db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+                //db.ChangeTracker.AutoDetectChangesEnabled = false;
 
                 var cell = plusCode.ToGeoArea();
                 var area = plusCode.ToPolygon();
@@ -489,7 +496,7 @@ namespace PraxisCore
 
                     if (placeData.Count == 0)
                         continue;
-                    List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>(placeData.Count);
+                    ConcurrentBag<OfflinePlaceEntry> entries = new ConcurrentBag<OfflinePlaceEntry>();
                     var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
                     foreach (var name in names)
                         nametable.Add(name, ++nameIdCounter);
@@ -504,11 +511,10 @@ namespace PraxisCore
                         if (geo.IsEmpty)
                             return; // continue; //Probably an element on the border thats getting pulled in by buffer.
 
-                        int? nameID = null;
-                        if (!string.IsNullOrWhiteSpace(place.Name))
+                        int nameID = 0;
+                        if (place.Name != null)
                         {
-                            if (nametable.TryGetValue(place.Name, out var nameval))
-                                nameID = nameval;
+                            nametable.TryGetValue(place.Name, out nameID);
                         }
 
                         var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
@@ -528,20 +534,20 @@ namespace PraxisCore
 
                             offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
                             offline.p = coordSet;
-                            offline.size = sizeOrder;
-                            offline.layerOrder = styleEntry.PaintOperations.Min(p => p.LayerId);
+                            offline.s = sizeOrder;
+                            offline.lo = styleEntry.PaintOperations.Min(p => p.LayerId);
                             offline.OsmId = place.SourceItemID;
                             entries.Add(offline);
                         }
                     });
                     //TODO: determine why one south america place was null.
                     //Smaller number layers get drawn first, and bigger places get drawn first.
-                    finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.layerOrder).ThenByDescending(e => e.size).ToList();
+                    finalData.entries[style] = entries.OrderBy(e => e.lo).ThenByDescending(e => e.s).ToList();
                     foreach (var e in finalData.entries[style])
                     {
                         //Dont save this to the output file.
-                        e.size = null;
-                        e.layerOrder = null;
+                        e.s = null;
+                        e.lo = null;
                     }
                 }
 
@@ -569,7 +575,7 @@ namespace PraxisCore
 
         public static List<string> GetCoordEntries(Geometry geo, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
         {
-            List<string> points = new List<string>();
+            List<string> points = new List<string>(geo.Coordinates.Length);
 
             if (geo.GeometryType == "MultiPolygon")
             {
@@ -595,7 +601,7 @@ namespace PraxisCore
 
         public static List<string> GetPolygonPoints(Polygon p, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
         {
-            List<string> results = new List<string>();
+            List<string> results = new List<string>(p.Coordinates.Length);
             if (p.Holes.Length == 0)
                 results.Add(string.Join("|", p.Coordinates.Select(c => (int)Math.Round((c.X - min.Longitude) / xRes) + "," + ((int)Math.Round((c.Y - min.Latitude) / yRes)))));
             else
@@ -606,16 +612,18 @@ namespace PraxisCore
                 var northEdge = p.Coordinates.Max(c => c.Y);
                 var southEdge = p.Coordinates.Min(c => c.Y);
 
-                List<double> splitPoints = new List<double>();
+                List<double> splitPoints = new List<double>(p.Holes.Length);
                 foreach (var hole in p.Holes.OrderBy(h => h.Centroid.X))
                     splitPoints.Add(hole.Centroid.X);
 
+                Polygon splitPoly;
+                Geometry subPoly;
                 foreach (var point in splitPoints)
                 {
                     try
                     {
-                        var splitPoly = new GeoArea(southEdge, westEdge, northEdge, point).ToPolygon();
-                        var subPoly = p.Intersection(splitPoly);
+                        splitPoly = new GeoArea(southEdge, westEdge, northEdge, point).ToPolygon();
+                        subPoly = p.Intersection(splitPoly);
 
                         //Still need to check that we have reasonable geometry here.
                         if (subPoly.GeometryType == "Polygon")
@@ -1041,14 +1049,14 @@ namespace PraxisCore
             {
                 if (!existing.entries.TryGetValue(entryList.Key, out var entry))
                 {
-                    var addList = entryList.Value.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid.HasValue ? newNameMap[e.nid.Value] : null }).ToList();
+                    var addList = entryList.Value.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid > 0 ? newNameMap[e.nid.Value] : null }).ToList();
                     existing.entries.Add(entryList.Key, addList);
                 }
                 else if (entry != null)
                 {
                     //merge entries
                     var list2 = entryList.Value;
-                    list2 = list2.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid.HasValue ? newNameMap[e.nid.Value] : null }).ToList();
+                    list2 = list2.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid > 0 ? newNameMap[e.nid.Value] : null }).ToList();
                     //Remove duplicates
                     var remove = list2.Where(l2 => entry.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)).ToList();
                     foreach (var r in remove)
