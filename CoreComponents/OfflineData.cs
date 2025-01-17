@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using NetTopologySuite.Geometries;
 using OsmSharp.IO.PBF;
+using OsmSharp.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -240,7 +241,21 @@ namespace PraxisCore
                         inner_zip = new ZipArchive(File.Create(file), ZipArchiveMode.Update);
                     }
                     else
-                        inner_zip = ZipFile.Open(file, ZipArchiveMode.Update);
+                    {
+                        try
+                        {
+
+
+                            inner_zip = ZipFile.Open(file, ZipArchiveMode.Update);
+                        }
+                        catch(Exception ex)
+                        {
+                            //file is probably corrupt, delete it.
+                            Log.WriteLog("File " + file + " could not be opened, assuming corrupt. Deleting and recreating");
+                            File.Delete(file);
+                            inner_zip = new ZipArchive(File.Create(file), ZipArchiveMode.Update);
+                        }
+                    }
 
                     try
                     {
