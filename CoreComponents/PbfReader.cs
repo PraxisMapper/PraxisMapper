@@ -14,6 +14,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -393,7 +394,7 @@ namespace PraxisCore.PbfReader
                                 noMatches = false;
                                 break;
                             }
-                            tempTags.Clear();                            
+                            tempTags.Clear();
                         }
                         if (noMatches)
                         {
@@ -456,116 +457,156 @@ namespace PraxisCore.PbfReader
                         if (placeIds.Count == 0)
                         {
                             Log.WriteLog("Processed a group but got no results in " + sw.Elapsed.ToString());
-                                continue;
+                            continue;
                         }
-                        
-                        List<DbTables.Place> processed = geoData.AsParallel().Select(g =>
-                        {
-                            if (g == null)
-                                return null;
-                            var place = GeometrySupport.ConvertFundamentalOsmToPlace(g, styleSet);
 
-                            if (processingMode == "center")
-                                place.ElementGeometry = place.ElementGeometry.Centroid;
-                            else if (processingMode == "expandPoints")
+                        if (processingMode == "offline")
+                        {
+                            //It's 5-10x faster to process these straight to the OfflinePlace format than to covert Place to OfflinePlace.
+                            List<DbTables.OfflinePlace> processedO = geoData.AsParallel().Select(g =>
                             {
-                                if (place.SourceItemType == 1)
-                                    place.ElementGeometry = place.ElementGeometry.Buffer(ConstantValues.resolutionCell8 / 2); //TODO: cell10 resolution?
+                                if (g == null)
+                                    return null;
+                                var place = GeometrySupport.ConvertFundamentalOsmToOfflinePlace(g, styleSet);
+                                if (processingMode == "center")
+                                    place.ElementGeometry = place.ElementGeometry.Centroid;
+                                else if (processingMode == "expandPoints")
+                                {
+                                    if (place.SourceItemType == 1)
+                                        place.ElementGeometry = place.ElementGeometry.Buffer(ConstantValues.resolutionCell8 / 2); //TODO: cell10 resolution?
+                                }
+
+                                return place;
                             }
+                            ).Where(p => p != null).ToList();
 
-                            return place;
-                        }).Where(p => p != null).ToList();
-
-                        if (!saveToDB)
-                        {
-                            //NOTE: this writes each group to its own file, because updating a single existing file causes a full rewrite of the
-                            //file at this time. Writing separate files keeps the app running fast.
-
-                            //Skip post-processing when writing to disk, let databases handle that.
-                            var pe = new PlaceExport(filename.Replace(".pbf", "-" + block + "-" + groupId + ".pmd"));
-                            changed = processed.Count;
-                            foreach (var place in processed)
-                                pe.AddEntry(place);
-
+                            using var db = new PraxisContext(); //create a new one each group to free up RAM faster
+                            db.ChangeTracker.AutoDetectChangesEnabled = false; //automatic change tracking disabled for performance, we only track the stuff we actually change.
+                            db.Database.SetCommandTimeout(600);
+                            db.OfflinePlaces.AddRange(processedO);
                             try
                             {
-                                pe.Close();
+                                var saved = db.SaveChanges();
                             }
                             catch (Exception ex)
                             {
-                                Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
+                                Log.WriteLog("Error saving Block " + block + " Group " + groupId + ": " + ex.Message);
+                                //TODO: save this in a recoverable way and apply it back to the DB later.
+                                var jsonData = JsonSerializer.Serialize(processedO);
+                                File.WriteAllText("block-" + block + "-group-" + groupId+ ".json", jsonData);
                             }
                         }
                         else
                         {
-                            using var db = new PraxisContext(); //create a new one each group to free up RAM faster
-                            db.ChangeTracker.AutoDetectChangesEnabled = false; //automatic change tracking disabled for performance, we only track the stuff we actually change.
-                            db.Database.SetCommandTimeout(600);
-                            if (processingMode == "offline")
+
+                            List<DbTables.Place> processed = geoData.AsParallel().Select(g =>
                             {
-                                //Log.WriteLog("Converting items to offline format");
-                                var entries = processed.Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet));//.ToList();
-                                //Log.WriteLog("Items converted");
-                                db.OfflinePlaces.AddRange(entries);
-                            }
-                            else
-                            {
-                                Dictionary<long, DbTables.Place> currentData = null;
-                                if (!skipExisting)
-                                    currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
-                                foreach (var newEntry in processed)
+                                if (g == null)
+                                    return null;
+                                var place = GeometrySupport.ConvertFundamentalOsmToPlace(g, styleSet);
+
+                                if (processingMode == "center")
+                                    place.ElementGeometry = place.ElementGeometry.Centroid;
+                                else if (processingMode == "expandPoints")
                                 {
-                                    if (newEntry == null)
-                                        continue;
-
-                                    if (skipExisting || !currentData.TryGetValue(newEntry.SourceItemID, out var existing))
-                                        db.Places.Add(newEntry);
-                                    else
-                                    {
-                                        Place.UpdateChanges(existing, newEntry, db);
-                                    }
+                                    if (place.SourceItemType == 1)
+                                        place.ElementGeometry = place.ElementGeometry.Buffer(ConstantValues.resolutionCell8 / 2); //TODO: cell10 resolution?
                                 }
-                            }
-                            //check if data is removed - NOPE. This wipes out existing data if we're using a different styleSet or source file. 
-                            //TODO Delete needs to be its own pass, matching everything on an single extract file. 
-                            //var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
-                            //db.Places.RemoveRange(removed);
 
-                            try
-                            {
-                                //Log.WriteLog("Writing to DB");
-                                changed = db.SaveChanges(); //This count includes tags and placedata.
-                                //Log.WriteLog("DB Save Completed");
-                            }
-                            catch (Exception ex)
-                            {
-                                //TODO: more precise error handling and potentially in-line recovery
-                                //"max_allowed_packet" error may be fixable by splitting up the write commands?
-                                var message = ex.Message;
-                                while (ex.InnerException != null)
-                                {
-                                    ex = ex.InnerException;
-                                    message = ex.Message;
-                                }
-                                Log.WriteLog("Error saving Block " + block + " Group " + groupId + ": " + message);
+                                return place;
+                            }).Where(p => p != null).ToList();
 
-                                //NOTE: copy/pasting save to file here as a way to quick-recover this data later.
-                                //TOOD: functionalize this later.
-                                var pe2 = new PlaceExport(filename.Replace(".pbf", "-" + block + "-" + groupId + ".pmd"));
-                                changed = geoData.Count;
+                            if (!saveToDB)
+                            {
+                                //NOTE: this writes each group to its own file, because updating a single existing file causes a full rewrite of the
+                                //file at this time. Writing separate files keeps the app running fast.
+
+                                //Skip post-processing when writing to disk, let databases handle that.
+                                var pe = new PlaceExport(filename.Replace(".pbf", "-" + block + "-" + groupId + ".pmd"));
+                                changed = processed.Count;
                                 foreach (var place in processed)
-                                    pe2.AddEntry(place);
+                                    pe.AddEntry(place);
 
                                 try
                                 {
-                                    pe2.Close();
+                                    pe.Close();
                                 }
-                                catch (Exception ex2)
+                                catch (Exception ex)
                                 {
-                                    Log.WriteLog("Error writing data to disk:" + ex2.Message, Log.VerbosityLevels.Errors);
+                                    Log.WriteLog("Error writing data to disk:" + ex.Message, Log.VerbosityLevels.Errors);
                                 }
                             }
-                            db.Dispose();
+                            else
+                            {
+                                using var db = new PraxisContext(); //create a new one each group to free up RAM faster
+                                db.ChangeTracker.AutoDetectChangesEnabled = false; //automatic change tracking disabled for performance, we only track the stuff we actually change.
+                                db.Database.SetCommandTimeout(600);
+                                if (processingMode == "offline")
+                                {
+                                    //Log.WriteLog("Converting items to offline format");
+                                    var entries = processed.Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet));//.ToList();
+                                                                                                                      //Log.WriteLog("Items converted");
+                                    db.OfflinePlaces.AddRange(entries);
+                                }
+                                else
+                                {
+                                    Dictionary<long, DbTables.Place> currentData = null;
+                                    if (!skipExisting)
+                                        currentData = db.Places.Include(p => p.PlaceData).Where(p => p.SourceItemType == itemType && placeIds.Contains(p.SourceItemID)).ToDictionary(k => k.SourceItemID, v => v);
+                                    foreach (var newEntry in processed)
+                                    {
+                                        if (newEntry == null)
+                                            continue;
+
+                                        if (skipExisting || !currentData.TryGetValue(newEntry.SourceItemID, out var existing))
+                                            db.Places.Add(newEntry);
+                                        else
+                                        {
+                                            Place.UpdateChanges(existing, newEntry, db);
+                                        }
+                                    }
+                                }
+                                //check if data is removed - NOPE. This wipes out existing data if we're using a different styleSet or source file. 
+                                //TODO Delete needs to be its own pass, matching everything on an single extract file. 
+                                //var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
+                                //db.Places.RemoveRange(removed);
+
+                                try
+                                {
+                                    //Log.WriteLog("Writing to DB");
+                                    changed = db.SaveChanges(); //This count includes tags and placedata.
+                                                                //Log.WriteLog("DB Save Completed");
+                                }
+                                catch (Exception ex)
+                                {
+                                    //TODO: more precise error handling and potentially in-line recovery
+                                    //"max_allowed_packet" error may be fixable by splitting up the write commands?
+                                    var message = ex.Message;
+                                    while (ex.InnerException != null)
+                                    {
+                                        ex = ex.InnerException;
+                                        message = ex.Message;
+                                    }
+                                    Log.WriteLog("Error saving Block " + block + " Group " + groupId + ": " + message);
+
+                                    //NOTE: copy/pasting save to file here as a way to quick-recover this data later.
+                                    //TOOD: functionalize this later.
+                                    var pe2 = new PlaceExport(filename.Replace(".pbf", "-" + block + "-" + groupId + ".pmd"));
+                                    changed = geoData.Count;
+                                    foreach (var place in processed)
+                                        pe2.AddEntry(place);
+
+                                    try
+                                    {
+                                        pe2.Close();
+                                    }
+                                    catch (Exception ex2)
+                                    {
+                                        Log.WriteLog("Error writing data to disk:" + ex2.Message, Log.VerbosityLevels.Errors);
+                                    }
+                                }
+                                db.Dispose();
+                            }
 
                         }
                     }
@@ -613,6 +654,11 @@ namespace PraxisCore.PbfReader
             CleanupFiles();
             swFile.Stop();
             Log.WriteLog(filename + " completed at " + DateTime.Now + ", session lasted " + swFile.Elapsed);
+        }
+
+        public void TrySaveToDb(PraxisContext db)
+        {
+            //TODO: functionalize this bit
         }
 
         public void DeleteMissingItems(string filename)
@@ -1562,11 +1608,11 @@ namespace PraxisCore.PbfReader
                 //Slightly more complex: only remove blocks we didn't access last call. saves some serialization effort. Small RAM trade for 30% speed increase.
                 if (!keepAllBlocksInRam)
                     activeBlocks.TryRemove(blockId, out _); //We dont need the current one.
-                    foreach (var blockRead in activeBlocks)
-                    {
-                        if (!accessedBlocks.ContainsKey(blockRead.Key))
-                            activeBlocks.TryRemove(blockRead.Key, out _);
-                    }
+                foreach (var blockRead in activeBlocks)
+                {
+                    if (!accessedBlocks.ContainsKey(blockRead.Key))
+                        activeBlocks.TryRemove(blockRead.Key, out _);
+                }
                 accessedBlocks.Clear();
                 return results;
             }
@@ -2082,7 +2128,7 @@ namespace PraxisCore.PbfReader
                     return true;
             }
             return false;
-        }       
+        }
 
         //Using Coordinate arrays is very slightly faster than CompleteOsmGeo items,
         //but I want all the performance I can get on huge files.
@@ -2169,9 +2215,9 @@ namespace PraxisCore.PbfReader
                         if (!EntryMatchesSet(tc))
                             continue;
                     }
-                    
+
                     Coordinate c = new Coordinate(DecodeLatLon(lon, lon_offset, granularity), DecodeLatLon(lat, lat_offset, granularity));
-                    FundamentalOsm n = new FundamentalOsm([[c]], null, tc, 1, nodeId);                    
+                    FundamentalOsm n = new FundamentalOsm([[c]], null, tc, 1, nodeId);
 
                     //if bounds checking, drop nodes that aren't needed.
                     if (bounds == null || (c.Y >= bounds.MinY && c.Y <= bounds.MaxY && c.X >= bounds.MinX && c.X <= bounds.MaxX))
@@ -2368,7 +2414,7 @@ namespace PraxisCore.PbfReader
                     var role = Encoding.UTF8.GetString(stringData[rel.roles_sid[i]]);
                     if (role != "inner" && role != "outer")
                         continue;
-                    
+
                     var wayKey = FindBlockInfoForWay(idToFind, out int indexPosition, hint);
                     hint = indexPosition;
                     var way = MakeCompleteWayAsCoords(idToFind, hint, false, true);

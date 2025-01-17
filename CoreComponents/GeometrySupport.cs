@@ -273,6 +273,50 @@ namespace PraxisCore
             }
         }
 
+        public static DbTables.OfflinePlace ConvertFundamentalOsmToOfflinePlace(FundamentalOsm g, string styleSet = "mapTiles")
+        {
+            try
+            {
+                var styleName = TagParser.GetStyleEntry(g.tags, styleSet).Name;
+                if (styleName == "unmatched" || styleName == "background")
+                    return null;
+
+                var geometry = PMFeatureInterpreterCoords.Interpret(g);
+                if (geometry == null)
+                {
+                    Log.WriteLog("Error: " + g.entryType.ToString() + " " + g.entryId + "-" + TagParser.GetName(g) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
+                    return null;
+                }
+                //TODO: re-test this to confrim this doesn't break when importing closed linestrings.
+                if (geometry.GeometryType == "LinearRing" || (geometry.GeometryType == "LineString" && (geometry as LineString).IsClosed))
+                {
+                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
+                    geometry = Singletons.geometryFactory.CreatePolygon(geometry.Coordinates);
+                }
+
+                var place = new DbTables.OfflinePlace();
+                place.SourceItemID = g.entryId;
+                place.SourceItemType = g.entryType;
+                geometry = SimplifyPlace(geometry);
+                if (geometry == null)
+                {
+                    Log.WriteLog("Error: " + g.entryType.ToString() + " " + g.entryId + " didn't simplify for some reason.", Log.VerbosityLevels.Errors);
+                    return null;
+                }
+                geometry.SRID = 4326;//Required for SQL Server to accept data.
+                place.ElementGeometry = geometry;
+                place.StyleName = styleName;
+                place.DrawSizeHint = CalculateDrawSizeHint(place.ElementGeometry, styleSet, place.StyleName);
+
+                return place;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("Error: Item " + g.entryId + " failed to process. " + ex.Message);
+                return null;
+            }
+        }
+
         /// <summary>
         /// Calculates the DrawSizeHint for a given Place. The DrawSizeHint is 'How many pixels does this Place take to draw at the system's configuration for the 'mapTiles' style on a gameplay tile?
         /// </summary>
@@ -303,6 +347,12 @@ namespace PraxisCore
                 var pointRadiusPixels = ((pointRadius * pointRadius * float.Pi) / ConstantValues.squareCell11Area);
                 return pointRadiusPixels;
             }
+        }
+
+        public static double CalculateDrawSizeHint(Geometry geometry, string styleSet, string style)
+        {
+            var paintOp = TagParser.allStyleGroups[styleSet][style].PaintOperations;
+            return CalculateDrawSizeHint(geometry, paintOp);
         }
 
         public static double CalculateDrawSizeHint(Geometry geometry, ICollection<StylePaint> paintOp)
