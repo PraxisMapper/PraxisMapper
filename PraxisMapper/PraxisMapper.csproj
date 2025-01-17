@@ -4,6 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <UserSecretsId>435f7c05-10cf-44e9-8d51-ccb20b1b12ad</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+	<CETCompat>false</CETCompat>
   </PropertyGroup>
 
   <ItemGroup>

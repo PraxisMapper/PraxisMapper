@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
+	  <!-- Setting this to avoid random failures in apps.-->
+	  <CETCompat>false</CETCompat>
   </PropertyGroup>
 
   <ItemGroup>
