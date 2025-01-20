@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.DbTables;
+using static PraxisCore.OfflineData;
 using static PraxisCore.Singletons;
 
 namespace PraxisCore
@@ -309,6 +310,61 @@ namespace PraxisCore
                 place.DrawSizeHint = CalculateDrawSizeHint(place.ElementGeometry, styleSet, place.StyleName);
 
                 return place;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("Error: Item " + g.entryId + " failed to process. " + ex.Message);
+                return null;
+            }
+        }
+
+        //TODO: this should just pass us back the offline format directly from the PBF file.
+        //Or is this getting done in OfflineData?
+        public static List<OfflinePlaceEntry> ConvertFundamentalOsmToOfflineV2Entry(FundamentalOsm g, string plusCode, string styleSet = "mapTiles")
+        {
+            try
+            {
+                var final = new OfflinePlaceEntry();
+                var style = TagParser.GetStyleEntry(g.tags, styleSet);
+                var styleName = style.Name;
+                if (styleName == "unmatched" || styleName == "background")
+                    return null;
+
+                var area = plusCode.ToPolygon();
+                var geometry = PMFeatureInterpreterCoords.Interpret(g);
+                if (geometry == null)
+                    return null;
+                geometry = geometry.Intersection(area);
+                geometry = SimplifyPlace(geometry);
+                if (geometry == null)
+                {
+                    Log.WriteLog("Error: " + g.entryType.ToString() + " " + g.entryId + "-" + TagParser.GetName(g) + " didn't interpret into a Geometry object", Log.VerbosityLevels.Errors);
+                    return null;
+                }
+                //TODO: re-test this to confrim this doesn't break when importing closed linestrings.
+                if (geometry.GeometryType == "LinearRing" || (geometry.GeometryType == "LineString" && (geometry as LineString).IsClosed))
+                {
+                    //I want to update all LinearRings to Polygons, and let the style determine if they're Filled or Stroked.
+                    geometry = Singletons.geometryFactory.CreatePolygon(geometry.Coordinates);
+                }
+
+                var DrawSizeHint = CalculateDrawSizeHint(geometry, styleSet, styleName);
+                List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>();
+                var coordsets = OfflineData.GetCoordEntries(geometry, OpenLocationCode.DecodeValid(plusCode).Min);
+                foreach (var c in coordsets)
+                {
+                    var place = new OfflinePlaceEntry();
+                    place.gt = geometry.GeometryType == "Point" ? 1 : geometry.GeometryType == "LineString" ? 2 : style.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+                    place.lo = style.PaintOperations.Min(p => p.LayerId);
+                    //place.nid //might have to be handled outside of this call since the nametable is shared.
+                    place.OsmId = g.entryId;
+                    place.p = c;
+                    place.s = DrawSizeHint;
+                    place.tid = style.MatchOrder;
+                    entries.Add(place);
+                }
+
+                return entries;                
             }
             catch (Exception ex)
             {

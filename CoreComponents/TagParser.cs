@@ -471,6 +471,18 @@ namespace PraxisCore {
             return retVal.Value;
         }
 
+        public static string GetName(TagsCollectionBase tagsO)
+        {
+            if (tagsO == null || tagsO.Count == 0)
+                return "";
+            if (tagsO.ContainsKey("name"))
+                return tagsO["name"];
+            if (tagsO.ContainsKey("name:en"))
+                return tagsO["name:en"];
+            
+            return tagsO.FirstOrDefault(t => t.Key.StartsWith("name:")).Value;
+        }
+
         /// <summary>
         /// Returns the name of a Place by searching its tags. NOTE: if you're getting errors saying that you need to include a reference to OSMSharp,use PickName instead.
         /// </summary>

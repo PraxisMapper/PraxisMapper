@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using NetTopologySuite.Geometries;
 using OsmSharp.IO.PBF;
-using OsmSharp.Logging;
+using PraxisCore.Support;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -45,6 +45,7 @@ namespace PraxisCore
             public double? s { get; set; } //size, Removed after sorting.
             public int? lo { get; set; } //layer order.
             public long OsmId { get; set; } // can combine with gt to uniquely identify this item
+            public string name { get; set; } //Meant to be used internally for sorting. For maximum space efficiency, should be nulled out before saving.
         }
 
         public class OfflineDataV2Min//Still a Cell6 to draw, but minimized as much as possible.
@@ -110,7 +111,7 @@ namespace PraxisCore
                         places = Place.GetPlaces(plusCode.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell8), skipTags: true);
                         //For the really big areas, if we crop it once here, should save about 3 minutes of processing later.
                         foreach (var place in places)
-                            place.ElementGeometry = place.ElementGeometry.Intersection(area); 
+                            place.ElementGeometry = place.ElementGeometry.Intersection(area);
                         load.Stop();
                         Console.WriteLine("Places for " + plusCode + " loaded in " + load.Elapsed);
                     }
@@ -248,7 +249,7 @@ namespace PraxisCore
 
                             inner_zip = ZipFile.Open(file, ZipArchiveMode.Update);
                         }
-                        catch(Exception ex)
+                        catch (Exception ex)
                         {
                             //file is probably corrupt, delete it.
                             Log.WriteLog("File " + file + " could not be opened, assuming corrupt. Deleting and recreating");
@@ -477,6 +478,90 @@ namespace PraxisCore
             }
         }
 
+        //This is for writing directly to offline format from a pbf. This expects to be run on each individual place for one Cell6 at a time.
+        //RIght now, names will either need passed in or handled before/after this call.
+        public static List<OfflinePlaceEntry> MakeEntriesForOnePlace(string plusCode, string style, FundamentalOsm place)
+        {
+            //var counter = 1;
+            try
+            {
+                var cell = plusCode.ToGeoArea();
+                var area = plusCode.ToPolygon();
+
+                //var styles = stylesToUse.Split(",");
+
+                //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
+                //will make larger files but the output would be a closer match to the server's images.
+
+                var min = cell.Min;
+                Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
+                var nameIdCounter = 0;
+
+                //var finalData = new OfflineDataV2();
+                //finalData.olc = plusCode;
+                //finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
+                //foreach (var style in styles)
+                //{
+                //if this style doesn't match this place, skip this
+                var styleData = TagParser.GetStyleEntry(place.tags, style);
+                if (styleData.Name == TagParser.defaultStyle.Name)
+                {
+                    return null;
+                }
+                List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>();
+                //Names need handled outside of this function.
+                //var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
+                //foreach (var name in names)
+                //nametable.Add(name, ++nameIdCounter);
+
+                //foreach (var place in placeData)
+                //Parallel.ForEach(placeData, (place) => //we save data and re-order stuff after.
+                //{
+                //TODO: handle names NOW, and add it back into the results below.
+                var name = TagParser.GetName(place.tags);
+                var geo = GeometrySupport.ConvertFundamentalOsmToOfflineV2Entry(place, plusCode, style);
+                if (geo == null)
+                    return null;
+
+                int? nameID = null;
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    if (nametable.TryGetValue(name, out var nameval))
+                        nameID = nameval;
+                }
+
+
+                //});
+                //TODO: determine why one south america place was null.
+                //Smaller number layers get drawn first, and bigger places get drawn first.
+                //finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.lo).ThenByDescending(e => e.s).ToList();
+                foreach (var e in geo)
+                {
+                    //Add name ID
+                    e.nid = nameID;
+                    //but remove the sort size.
+                    //e.s = null;
+                    //e.lo = null;
+                }
+                //}
+
+                return geo;
+
+                //if (finalData.entries.Count == 0)
+                //return null;
+
+                //finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
+
+                //finalData.dateGenerated = DateTime.UtcNow.ToUnixTime();
+                //return finalData;
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLog("Caught unexpected error: " + ex.Message);
+                return null;
+            }
+        }
+
         //NOTE: Take any optimizations made here, and apply to the MakeEntries function so they stay on par.
         public static OfflineDataV2 MakeEntriesFromOffline(string plusCode, string stylesToUse, List<DbTables.OfflinePlace> places = null)
         {
@@ -661,7 +746,7 @@ namespace PraxisCore
             return results.Distinct().ToList(); //In the unlikely case splitting ends up processing the same part twice
         }
 
-        static List<string> GetCellCombos()
+        public static List<string> GetCellCombos()
         {
             var list = new List<string>(400);
             foreach (var Yletter in OpenLocationCode.CodeAlphabet)
@@ -673,7 +758,7 @@ namespace PraxisCore
             return list;
         }
 
-        static List<string> GetCell2Combos()
+        public static List<string> GetCell2Combos()
         {
             var list = new List<string>(400);
             foreach (var Yletter in OpenLocationCode.CodeAlphabet.Take(9))
@@ -718,7 +803,7 @@ namespace PraxisCore
             {
                 //if (!PraxisCore.Place.DoPlacesExist(plusCode.ToGeoArea(), places))
                 if (!PraxisCore.Place.DoOfflinePlacesExist(plusCode.ToGeoArea(), places))
-                return;
+                    return;
 
                 if (plusCode.Length == 4)
                 {
@@ -734,7 +819,7 @@ namespace PraxisCore
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetOfflinePlaces(plusCode.ToGeoArea()); // Not padded, because this isn't drawing stuff.
                         load.Stop();
-                        Console.WriteLine("Places loaded in " + load.Elapsed + ", count " + places.Count.ToString()  + ", biggest " + places.Max(p => p.ElementGeometry.Coordinates.Length).ToString());
+                        Console.WriteLine("Places loaded in " + load.Elapsed + ", count " + places.Count.ToString() + ", biggest " + places.Max(p => p.ElementGeometry.Coordinates.Length).ToString());
                     }
                     catch (Exception ex)
                     {
@@ -1037,54 +1122,113 @@ namespace PraxisCore
 
         public static OfflineDataV2 MergeOfflineFiles(OfflineDataV2 existing, OfflineDataV2 adding)
         {
+            OfflineDataV2 bigger, smaller;
+
+            if (existing.entries.Count > adding.entries.Count)
+            {
+                bigger = existing;
+                smaller = adding;
+            }
+            else
+            {
+                bigger = adding;
+                smaller = existing;
+            }
+
             //Step 1: Update name table
             Dictionary<int, int> newNameMap = new Dictionary<int, int>(); //<addingTableKey, exisitngTAbleKey>
-            if (existing.nameTable == null)
-                existing.nameTable = new Dictionary<int, string>();
+            if (bigger.nameTable == null)
+                bigger.nameTable = new Dictionary<int, string>();
 
-            int maxKey = existing.nameTable.Count;
-            if (adding.nameTable != null)
+            int maxKey = bigger.nameTable.Count;
+            if (smaller.nameTable != null)
             {
-                foreach (var name in adding.nameTable)
+                foreach (var name in smaller.nameTable)
                 {
-                    if (existing.nameTable.ContainsValue(name.Value))
+                    if (bigger.nameTable.ContainsValue(name.Value))
                     {
-                        newNameMap.Add(name.Key, existing.nameTable.First(n => n.Value == name.Value).Key);
+                        newNameMap.Add(name.Key, bigger.nameTable.First(n => n.Value == name.Value).Key);
                     }
                     else
                     {
-                        existing.nameTable.Add(++maxKey, name.Value);
+                        bigger.nameTable.Add(++maxKey, name.Value);
                         newNameMap.Add(name.Key, maxKey);
                     }
                 }
             }
 
             //Step 2: merge sets of entries
-            foreach (var entryList in adding.entries)
+            foreach (var entryList in smaller.entries)
             {
-                if (!existing.entries.TryGetValue(entryList.Key, out var entry))
+                if (!bigger.entries.TryGetValue(entryList.Key, out var entry))
                 {
-                    var addList = entryList.Value.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid > 0 ? newNameMap[e.nid.Value] : null }).ToList();
-                    existing.entries.Add(entryList.Key, addList);
+                    var addList = entryList.Value.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid > 0 ? newNameMap[e.nid.Value] : null, OsmId = e.OsmId }).ToList();
+                    bigger.entries.Add(entryList.Key, addList);
                 }
                 else if (entry != null)
                 {
+                    //TODO: confirm this test logic still works. Will be tested automatically as I work on this stuff for the year.
                     //merge entries
                     var list2 = entryList.Value;
-                    list2 = list2.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid > 0 ? newNameMap[e.nid.Value] : null }).ToList();
+                    foreach(var e in list2)
+                    {
+                        if (e.nid > 0)
+                            e.nid = newNameMap[e.nid.Value];
+                    }
+                    //list2 = list2.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid > 0 ?  : null, OsmId = e.OsmId }).ToList();
                     //Remove duplicates
-                    var remove = list2.Where(l2 => entry.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)).ToList();
-                    foreach (var r in remove)
-                        list2.Remove(r);
-
-                    entry.AddRange(list2);
+                    //var remove = list2.Where(l2 => entry.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)).ToList();
+                    //foreach (var r in remove)
+                        //list2.Remove(r)
+                   //or would it be faster to Distinct() when done?
+                    entry.AddRange(list2.Where(l2 => !entry.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)));
                 }
             }
 
-            if (existing.nameTable.Count == 0 && (adding.nameTable == null || adding.nameTable.Count == 0))
-                existing.nameTable = null;
+            if (bigger.nameTable.Count == 0 && (smaller.nameTable == null || smaller.nameTable.Count == 0))
+                bigger.nameTable = null;
 
-            return existing;
+            return bigger;
         }
+
+        //TODO: if this takes in FundamentalOsm, is that more efficient?
+        //public static OfflinePlaceEntry CreateOfflineItemFromOfflinePlace(OfflinePlace place, Polygon area)
+        //{
+        //    var geo = place.ElementGeometry.Intersection(area);
+        //    if (simplifyRes > 0)
+        //        geo = geo.Simplify(simplifyRes);
+        //    if (geo.IsEmpty)
+        //        return null;
+
+        //    int nameID = 0;
+        //    if (place.Name != null)
+        //    {
+        //        nametable.TryGetValue(place.Name, out nameID);
+        //    }
+
+        //    var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
+
+        //    //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
+        //    //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
+        //    var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
+        //    foreach (var coordSet in coordSets)
+        //    {
+        //        if (coordSet == "")
+        //            //if (coordSet.Count == 0)
+        //            continue;
+
+        //        var offline = new OfflinePlaceEntry();
+        //        offline.nid = nameID;
+        //        offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
+
+        //        offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+        //        offline.p = coordSet;
+        //        offline.s = place.DrawSizeHint;
+        //        offline.lo = styleEntry.PaintOperations.Min(p => p.LayerId);
+        //        offline.OsmId = place.SourceItemID;
+
+        //        return offline;
+        //    }
+        //}
     }
 }
