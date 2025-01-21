@@ -119,162 +119,15 @@ namespace PraxisCore.PbfReader
             tokensource.Cancel();
         }
 
-        //NOTE: I do not want to export processed data, that can be done on load.
-        //private void ReprocessFile(string filename)
-        //{
-        //    //load up each line of a file from a previous run, and then re-process it according to the current settings.
-        //    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-        //    Log.WriteLog("Loading " + filename + " for processing at " + DateTime.Now);
-        //    sw.Start();
-        //    var original = new PlaceExport(filename);
-        //    var reproced = new PlaceExport(Path.GetFileNameWithoutExtension(filename) + "-reprocessed.pmd");
-
-        //    var md = original.GetNextPlace();
-        //    while (md != null)
-        //    {
-        //        if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
-        //            continue;
-
-        //        if (processingMode == "center")
-        //            md.ElementGeometry = md.ElementGeometry.Centroid;
-        //        else if (processingMode == "expandPoints")
-        //        {
-        //            //Declare that Points aren't sufficient for this game's purpose, expand them to Cell8 size for now
-        //            //Because actually upgrading them to the geometry for some containing shape requires a full global-loaded database.
-        //            if (md.SourceItemType == 1) //Only nodes get upgraded.
-        //                md.ElementGeometry = md.ElementGeometry.Buffer(ConstantValues.resolutionCell8);
-        //        }
-        //        else if (processingMode == "minimize") //This may be removed in the near future, since this has a habit of making invalid geometry.
-        //        {
-        //            styleSet = "suggestedmini"; //Forcing for now on this option.
-        //            try
-        //            {
-        //                md.ElementGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(md.ElementGeometry, ConstantValues.resolutionCell10); //rounds off any points too close together.
-        //                md.ElementGeometry = Singletons.reducer.Reduce(md.ElementGeometry);
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                Log.WriteLog("Couldn't reduce element " + md.SourceItemID + ", saving as-is (" + ex.Message + ")");
-        //            }
-        //        }
-        //        reproced.AddEntry(md);
-        //    }
-        //}
-
-        /// <summary>
-        /// Runs through the entire process to convert a PBF file into usable PraxisMapper data. The server bounds for this process must be identified via other functions.
-        /// </summary>
-        /// <param name="filename">The path to the PBF file to read</param>
-        /// <param name="onlyTagMatchedEntries">If true, only load data in the file that meets a rule in TagParser. If false, processes all elements in the file.</param>
-        public void ProcessFile(string filename, long relationId = 0)
-        {
-            try
-            {
-                //if (reprocessFile)
-                //{
-                //    ReprocessFile(filename);
-                //    return;
-                //}
-
-                Stopwatch sw = new Stopwatch();
-                sw.Start();
-
-                PrepareFile(filename);
-                filenameHeader += styleSet + "-";
-
-                if (relationId != 0)
-                {
-                    filenameHeader += relationId.ToString() + "-";
-                    //Get the source relation first
-                    var relation = MakeCompleteRelation(relationId);
-                    var NTSrelation = GeometrySupport.ConvertOsmEntryToPlace(relation, styleSet);
-                    bounds = NTSrelation.ElementGeometry.EnvelopeInternal;
-                }
-
-                int nextGroup = FindLastCompletedGroup() + 1; //saves -1 at the start of a block, so add this to 0.
-                int currentCount = 0;
-
-                if (!lowResourceMode) //typical path
-                {
-                    for (var block = nextBlockId; block >= firstWayBlock; block--)
-                    {
-                        var blockData = GetBlock(block);
-                        if (nextGroup >= blockData.primitivegroup.Count)
-                            nextGroup = 0;
-                        for (int i = nextGroup; i < blockData.primitivegroup.Count; i++)
-                        {
-                            try
-                            {
-                                var group = blockData.primitivegroup[i];
-                                System.Diagnostics.Stopwatch swGroup = new System.Diagnostics.Stopwatch();
-                                swGroup.Start();
-                                int thisBlockId = block;
-                                var geoData = GetGeometryFromGroup(thisBlockId, group, true);
-                                //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
-                                //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
-                                if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
-                                {
-                                    currentCount = ProcessReaderResults(geoData, block, i);
-                                }
-                                SaveCurrentBlockAndGroup(block, i);
-                                swGroup.Stop();
-                                if (group.relations.Count > 0 && swGroup.ElapsedMilliseconds >= 100)
-                                    timeListRelations.Add(swGroup.Elapsed);
-                                else if (swGroup.ElapsedMilliseconds >= 100)
-                                    timeListWays.Add(swGroup.Elapsed);
-                                Log.WriteLog("Block " + block + " Group " + i + " processed " + currentCount + " in " + swGroup.Elapsed);
-                            }
-                            catch (Exception ex)
-                            {
-                                Log.WriteLog("Error: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
-                                Log.WriteLog("Failed to process block " + block + " normally, trying the low-resourse option", Log.VerbosityLevels.Errors);
-                                Thread.Sleep(3000); //Not necessary, but I want to give the GC a chance to clean up stuff before we pick back up.
-                                LastChanceRead(block);
-                            }
-                        }
-                        nextGroup = 0;
-                        SaveCurrentBlockAndGroup(block - 1, -1); //save last completed group, not next group to run, so make this -1 at end of a block.
-                    }
-                    Log.WriteLog("Processing all node blocks....");
-                    ProcessAllNodeBlocks(firstWayBlock);
-                }
-                else
-                {
-                    //low resource mode
-                    //run each entry one at a time, save to disk immediately, don't multithread.
-                    for (var block = nextBlockId; block > 0; block--)
-                    {
-                        LastChanceRead(block);
-                    }
-                }
-                Close();
-                CleanupFiles();
-                sw.Stop();
-                Log.WriteLog("File completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
-            }
-            catch (Exception ex)
-            {
-                while (ex.InnerException != null)
-                    ex = ex.InnerException;
-                Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
-            }
-        }
-
         public void ProcessFileV2(string filename, long relationId = 0)
         {
-            //Most of this might be handlable by updating ProcessReaderResults and a few smaller tweaks to the ProcessFile loop?
-
-            //TODO: Make this the new main 'load' call, and meet all criteria below
-            //Reasons:
             //This will both INSERT and UPDATE the database from a PBF file. (OK)
             //This runs from start to finish, so there's a better idea of progress at a glance. (OK)
             //Better fits the goal of simplicity for users (one call does it all) instead of requiring a multiple-step setup. (OK)
             //Still needs to be fast. (Generally OK, not explicitly timed vs old 'parse-to-geomdata/bulkload/create indexes/PreTag' path but isn't bad.)
 
             //Requirements/changes pending:
-            //This one does reprocess data if a mode is set (Center is done, Minimize should be automatic, ExpandPoints is done)
-
-            //TODO: determine if LastChanceRead is still required, and lowresourcemode along with it (and high resource mode too)
+            //This one does reprocess data if a mode is set (Center is done, Minimize should be automatic, ExpandPoints is done, Offline requires slightly different path)
 
             //This one starts from the start and works it ways towards the end, one block/group at a time, directly against the database.
             //NOTE: styleSet is used to determine what counts as matched/unmatched, but matched elements are pre-tagged against all style sets.
@@ -373,7 +226,6 @@ namespace PraxisCore.PbfReader
                             try
                             {
                                 pe.Close();
-                                //pe.WriteToDisk(); //TODO: thread/queue/async? One file per group?
                             }
                             catch (Exception ex)
                             {
@@ -406,7 +258,7 @@ namespace PraxisCore.PbfReader
                             catch (Exception ex)
                             {
                                 //TODO: more precise error handling and potentially in-line recovery
-                                //"max_allowed_packet" error may be fixable by splitting up the write commands?
+                                //"max_allowed_packet" error may be fixable by splitting up the write commands, or telling the DB to handle bigger packets.
                                 var message = ex.Message;
                                 while (ex.InnerException != null)
                                 {
@@ -1768,7 +1620,6 @@ namespace PraxisCore.PbfReader
                 try
                 {
                     pe.Close();
-                    //pe.WriteToDisk(); //TODO: thread/queue/async?
                 }
                 catch (Exception ex)
                 {

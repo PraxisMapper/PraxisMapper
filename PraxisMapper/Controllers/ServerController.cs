@@ -183,8 +183,6 @@ namespace PraxisMapper.Controllers
         public bool CreateAccount([Description("DEPRECATED - The user's account id")] string accountId = null,
             [Description("DEPRECATED - The password for the account")] string password = null)
         {
-            //TODO: this should check for custom plugins, and if any are found pass stuff into those 
-            //so they can do any create account work as well.
             Response.Headers.Add("X-noPerfTrack", "Server/CreateAccount/VARSREMOVED");
 
             if (accountId == null)
@@ -207,7 +205,15 @@ namespace PraxisMapper.Controllers
             if (exists)
                 return false;
 
-            return GenericData.EncryptPassword(accountId, password, Configuration.GetValue<int>("PasswordRounds"));
+            var passwordMade = GenericData.EncryptPassword(accountId, password, Configuration.GetValue<int>("PasswordRounds"));
+
+            foreach (var p in GlobalPlugins.plugins)
+            {
+                //We haven't logged in yet, so we shouldn't give plugins the login password. They can use the internal data password after this step.
+                p.OnCreateAccount(accountId);
+            }
+
+            return passwordMade;
         }
 
         [HttpPut]

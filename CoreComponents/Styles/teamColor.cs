@@ -8,7 +8,6 @@ namespace PraxisCore.Styles
     /// </summary>
     public static class teamColor
     {
-        //TODO: these probably need to be fixed-size.
         public static List<StyleEntry> style = new List<StyleEntry>()
         {           
             new StyleEntry() { MatchOrder = 1, Name ="Red",  StyleSet = "teamColor",

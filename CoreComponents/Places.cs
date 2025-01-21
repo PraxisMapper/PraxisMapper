@@ -38,9 +38,6 @@ namespace PraxisCore
             IQueryable<DbTables.Place> queryable;
             PraxisContext db = null;
 
-            //TODO: can I use Simplify in EFCore db-side? Probably not but worth checking. Might be OK to send over a reduced version
-            //where the precision is the 1-pixel size so areas with TONS of points get sent over as far fewer.
-
             //TODO: see if I can use AsEnumerable() to enable streaming and processing of data instead of waiting for all entries with ToList()?
             List<DbTables.Place> places = null;
 
@@ -93,7 +90,6 @@ namespace PraxisCore
 
             queryable = queryable.Where(md => location.Intersects(md.ElementGeometry));
 
-            //TODO: determine if this change is actually necessary, or was some fluke.
             List<PlaceTags> placeholder = new List<PlaceTags>();
             queryable = queryable.Select(q => new DbTables.Place() 
             { 
@@ -118,7 +114,6 @@ namespace PraxisCore
             catch (Exception ex)
             {
                 var query = queryable.ToQueryString();
-                //System.Diagnostics.Debugger.Break();
             }
 
             if (db != null)
@@ -137,9 +132,6 @@ namespace PraxisCore
             //Intersects is the only indexable function on a geography column I would want here. Distance and Equals can also use the index, but I don't need those in this app.
             IQueryable<DbTables.OfflinePlace> queryable;
             PraxisContext db = null;
-
-            //TODO: can I use Simplify in EFCore db-side? Probably not but worth checking. Might be OK to send over a reduced version
-            //where the precision is the 1-pixel size so areas with TONS of points get sent over as far fewer.
 
             //TODO: see if I can use AsEnumerable() to enable streaming and processing of data instead of waiting for all entries with ToList()?
             List<DbTables.OfflinePlace> places = null;
@@ -272,6 +264,9 @@ namespace PraxisCore
         /// <returns>a GeoArea representing the bounds of the server's location at the resolution given.</returns>
         public static GeoArea DetectServerBounds(double resolution)
         {
+            //TODO: this should check for OfflinePlaces as well, and run separately on those if they exist and main places dont.
+            //That might be a separate function.
+
             //Auto-detect what the boundaries are for the database's data set.
             //NOTE: with the Aleutian islands, the USA is considered as wide as the entire map. These sit on both sides of the meridian.
             //These 2 start in the opposite corners, to make sure the replacements are correctly detected.
@@ -434,27 +429,11 @@ namespace PraxisCore
             //This theory ends up not being as practical as I'd hoped. This MOSTLY picks up on retail entries, since 
             //most of those are POINTS inside a larger shopping center thats also tagged Retail.
             //So this may get removed shortly in favor of something more reasonable and doing extra processing after I have the list.
-            //TODO: double check this, but without limiting it to Points. May have better luck checking for Ways in Ways/Relations?
 
             var allPlaces = FindAnyTargetPlaces(plusCode, distanceMinMeters, distanceMaxMeters, styleSet);
-            //trying to see if this works better without limiting to points? TODO test this to see if its better
-            //var targetPlaces = allPlaces.Where(a => a.IsGameElement).ToList();
             var possibleGood = allPlaces.Where(t => allPlaces.Any(tt => t.Id != tt.Id && tt.ElementGeometry.Covers(t.ElementGeometry))).ToList();
-            //var possibleParents = allPlaces.Except(targetPoints).Where(a => a.IsGameElement).OrderBy(a => a.ElementGeometry.Area);
 
             return possibleGood;
-            //return allPlaces;
-
-            //List<DbTables.Place> results = new List<DbTables.Place>();
-            //foreach(var p in possibleParents)
-            //{
-            //    //I have briefly considered not allowing these target point to be in the same style as their parent, but 
-            //    //there are likely more cases where I want that to be allowed (Historic in historic, tourist in tourist, culture in culture)
-            //    //than there are cases where I dont (park in park, water in water, etc).
-            //    results.AddRange(targetPoints.Where(t => p.ElementGeometry.Covers(t.ElementGeometry)));
-            //}
-
-            //return results.Distinct().ToList();
         }
 
         public static List<DbTables.Place> FindParentTargetPlaces(string plusCode, double distanceMinMeters, double distanceMaxMeters, string styleSet)

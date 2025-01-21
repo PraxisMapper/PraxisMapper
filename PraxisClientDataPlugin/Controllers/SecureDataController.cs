@@ -62,7 +62,6 @@ namespace PraxisClientDataPlugin.Controllers
         [Route("/[controller]/Place/{elementId}/{key}/{value}/{password}/{expiresIn}")]
         public bool SetSecureElementData(Guid elementId, string key, string value, string password, double? expiresIn = null)
         {
-            //TODO: make a route that can allow password to be sent via body.
             Response.Headers.Add("X-noPerfTrack", "SecureData/Place/" + elementId.ToString() + "/VALUESREMOVED-PUT");
             SimpleLockable.PerformWithLock(elementId + "-" + key, () =>
             {

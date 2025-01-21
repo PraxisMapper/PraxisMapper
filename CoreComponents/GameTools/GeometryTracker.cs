@@ -37,7 +37,6 @@ namespace PraxisCore.GameTools {
         public void RemoveGeometry(Geometry geo)
         {
             explored = explored.Difference(geo);
-            //TODO: test that this works as expected.
             if (explored is GeometryCollection ex)
             {
                 explored = Singletons.geometryFactory.CreateMultiPolygon(ex.Geometries.Where(g => g.GeometryType == "Polygon").Select(g => (Polygon)g).ToArray());

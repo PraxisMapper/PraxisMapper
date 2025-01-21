@@ -220,7 +220,7 @@ namespace Larry
                 DrawOneImage(args.First(a => a.StartsWith("-drawOneImage:")).Split(":")[1]);
             }
 
-            //TODO: this should 
+            //TODO: this should indicate it wants the WSG84 files, not the Mercator ones.
             if (args.Any(a => a.StartsWith("-processCoastlines:")))
             {
                 //NOTE: this is intended to read through the water polygon file. It'll probably run with the coastline linestring file, but that 
@@ -247,6 +247,7 @@ namespace Larry
 
             if (args.Any(a => a == "-makeOfflineFiles"))
             {
+                var sw = Stopwatch.StartNew();
                 if (!File.Exists("lastOfflineEntry.txt")) //Dont overwrite existing file, that means we're resuming an interrupted run.
                     File.WriteAllText("lastOfflineEntry.txt", "");
                 OfflineData.simplifyRes = config["offlineSimplifyResolution"].ToDouble();
@@ -263,6 +264,8 @@ namespace Larry
 
                 OfflineData.MakeOfflineJsonFromOfflineTable(""); //Larry should prefer this, since thats its purpose.
                 File.Delete("lastOfflineEntry.txt");
+                sw.Stop();
+                Log.WriteLog("Creating offline data completed in " + sw.Elapsed);
             }
 
             if (args.Any(a => a == "-makeMinimizedFiles"))
@@ -798,7 +801,6 @@ namespace Larry
 
         public static void RecalcDrawSizeHints()
         {
-            //TODO: write something that lets me quick and easy batch commands on the entities.
             using var db = new PraxisContext();
             var groupsDone = 0;
             var groupSize = 10000;
@@ -1195,10 +1197,6 @@ namespace Larry
 
         public static void LoadAsOffline()
         {
-            //TODO: make a new table thats self-contained. Get rid of joins and multiple indexes on it. 
-            //It's not intended for live use (though maybe it could be, if we did attach placeInfo to it)
-            //and then load the necessary data into that table.
-
             List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
             foreach (string filename in filenames)
             {

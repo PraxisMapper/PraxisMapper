@@ -35,7 +35,6 @@ namespace Google.Common.Geometry
    * Basic constructor. The latitude and longitude must be within the ranges
    * allowed by is_valid() below.
    *
-   * TODO(dbeaumont): Make this a static factory method (fromLatLng() ?).
    */
 
         public S2LatLng(S1Angle lat, S1Angle lng) : this(lat.Radians, lng.Radians)

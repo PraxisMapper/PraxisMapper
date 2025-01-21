@@ -302,40 +302,51 @@ namespace PraxisCore
             }
             else if (serverMode == "MariaDB")
             {
+                var sw = Stopwatch.StartNew();
                 //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 Database.ExecuteSqlRaw(MapTileIndex);
-                Log.WriteLog("MapTiles indexed.");
+                Log.WriteLog("MapTiles indexed in " + sw.Elapsed);
+                sw.Restart();
                 Database.ExecuteSqlRaw(SlippyMapTileIndex);
-                Log.WriteLog("SlippyMapTiles indexed.");
+                Log.WriteLog("SlippyMapTiles indexed in " + sw.Elapsed);
+                sw.Restart();
                 Database.ExecuteSqlRaw(PlacesIndex);
-                Log.WriteLog("Places geometry indexed.");
+                Log.WriteLog("Places geometry indexed in " + sw.Elapsed);
+                sw.Restart();
                 Database.ExecuteSqlRaw(OfflinePlacesIndex);
-                Log.WriteLog("Offline Places geometry indexed.");
+                Log.WriteLog("Offline Places geometry indexed in " + sw.Elapsed);
 
                 //now also add the automatic ones we took out in DropIndexes.
+                sw.Restart();
                 Database.ExecuteSqlRaw(drawSizeHintIndexMaria);
                 Database.ExecuteSqlRaw(offlineDrawSizeHintIndexMaria);
                 Database.ExecuteSqlRaw(sourceItemIdIndexMaria);
                 Database.ExecuteSqlRaw(sourceItemTypeIndexMaria);
                 Database.ExecuteSqlRaw(privacyIdIndexMaria);
-                Log.WriteLog("Places other columns indexed.");
+                Log.WriteLog("Places other columns indexed in " + sw.Elapsed );
+                sw.Restart();
                 Database.ExecuteSqlRaw(tagKeyIndexMaria);
-                //Database.ExecuteSqlRaw(tagSourceIndexMaria);
-                Log.WriteLog("PlaceTags indexed.");
+                Log.WriteLog("PlaceTags indexed in " + sw.Elapsed);
+                sw.Restart();
                 Database.ExecuteSqlRaw(AreaDataSpatialIndex);
-                Log.WriteLog("AreaData indexed.");
+                Log.WriteLog("AreaData indexed in " + sw.Elapsed);
             }
             else if (serverMode == "SQLServer" || serverMode == "LocalDB")
             {
+                var sw = Stopwatch.StartNew();
                 //db.Database.ExecuteSqlRaw(GeneratedMapDataIndex);
                 Database.ExecuteSqlRaw(MapTileIndex);
-                Log.WriteLog("MapTiles indexed.");
+                Log.WriteLog("MapTiles indexed in " + sw.Elapsed);
+                sw.Restart();
                 Database.ExecuteSqlRaw(SlippyMapTileIndex);
-                Log.WriteLog("SlippyMapTiles indexed.");
+                Log.WriteLog("SlippyMapTiles indexed in " + sw.Elapsed);
+                sw.Restart();
                 Database.ExecuteSqlRaw(PlacesIndex);
-                Log.WriteLog("Places geometry indexed.");
+                Log.WriteLog("Places geometry indexed in " + sw.Elapsed);
+                sw.Restart();
                 Database.ExecuteSqlRaw(OfflinePlacesIndex);
-                Log.WriteLog("Offline Places geometry indexed.");
+                Log.WriteLog("Offline Places geometry indexed in " + sw.Elapsed);
+                sw.Restart();
 
                 //now also add the automatic ones we took out in DropIndexes.
                 Database.ExecuteSqlRaw(drawSizeHintIndexSQL);
@@ -343,12 +354,14 @@ namespace PraxisCore
                 Database.ExecuteSqlRaw(sourceItemIdIndexSQL);
                 Database.ExecuteSqlRaw(sourceItemTypeIndexSQL);
                 Database.ExecuteSqlRaw(privacyIdIndexSQL);
-                Log.WriteLog("Places other columns indexed.");
+                Log.WriteLog("Places other columns indexed in " + sw.Elapsed);
+                sw.Restart();
                 Database.ExecuteSqlRaw(tagKeyIndexSQL);
                 //Database.ExecuteSqlRaw(tagSourceIndexSQL);
-                Log.WriteLog("PlaceTags indexed.");
+                Log.WriteLog("PlaceTags indexed in " + sw.Elapsed);
+                sw.Restart();
                 Database.ExecuteSqlRaw(AreaDataSpatialIndex);
-                Log.WriteLog("AreaData indexed.");
+                Log.WriteLog("AreaData indexed in " + sw.Elapsed);
             }
         }
 

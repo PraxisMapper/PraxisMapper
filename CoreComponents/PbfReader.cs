@@ -1,8 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.Geometries.Prepared;
 using OsmSharp.Complete;
 using OsmSharp.Geo;
 using OsmSharp.IO.PBF;
@@ -20,9 +18,13 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
+//NOTE:
+//Don't process planet.osm.pbf for mapTiles. It's too slow. The reason is that unlike the extract files (I source them from geofabrik.de),
+//planet.osm uses multiple groups in each of its blocks. This makes the primary chokepoint on reading the file become deserializing blocks
+//through protobuf code. Especially in worst cases, where it's got to load a whole block of nearly 100,000 points for one of them, multiple times.
+//Until them, planet.osm should be saved for smaller styleSets, like adminBounds(filled) or suggestedGameplay.
 namespace PraxisCore.PbfReader
 {
     public record struct IndexInfo(int blockId, int groupId, byte groupType, long minId, long maxId); //trying this as a struct. 22 bytes instead of 16 as suggested, but about 4% faster.
@@ -67,8 +69,6 @@ namespace PraxisCore.PbfReader
         Envelope bounds = null; //If not null, reject elements not within it
         public Polygon importBounds = null; //If set, we're only importing data that fits inside this polygon.
 
-        //TODO: see if activeBlocks can be swapped to an array, to avoid resizing of the dictionary between blocks.
-        //and accessedBlocks can be just an array of longs.
         ConcurrentDictionary<long, PrimitiveBlock> activeBlocks = new ConcurrentDictionary<long, PrimitiveBlock>(initialConcurrency, initialCapacity);
         ConcurrentDictionary<long, bool> accessedBlocks = new ConcurrentDictionary<long, bool>(initialConcurrency, initialCapacity);
 
@@ -408,6 +408,7 @@ namespace PraxisCore.PbfReader
                             {
                                 Log.WriteLog("Error saving Block " + block + " Group " + groupId + ": " + ex.Message);
                                 //TODO: save this in a recoverable way and apply it back to the DB later.
+                                //This occasionally throws an error about a named double somewhere, that makes no sense to me.
                                 var jsonData = JsonSerializer.Serialize(processedO);
                                 File.WriteAllText("block-" + block + "-group-" + groupId + ".json", jsonData);
                             }
@@ -698,7 +699,6 @@ namespace PraxisCore.PbfReader
             for (var block = nextBlockId; block < Bcount; block++)
             {
                 var blockData = GetBlock(block);
-                //foreach(var group in blockData.primitivegroup)
                 for (int groupId = 0; groupId < blockData.primitivegroup.Count; groupId++)
                 {
                     var group = blockData.primitivegroup[groupId];
@@ -1982,7 +1982,7 @@ namespace PraxisCore.PbfReader
 
                 foreach (var dataSet in exportsByMatch)
                     if (dataSet.Value.totalEntries > 0)
-                        dataSet.Value.WriteToDisk(); //TODO: queue/async/whatever?
+                        dataSet.Value.WriteToDisk();
             }
             else
             {
@@ -2133,16 +2133,6 @@ namespace PraxisCore.PbfReader
                 sw.Close(); sw.Dispose(); file.Close(); file.Dispose();
             });
         }
-
-        //public bool EntryMatchesSet(TagsCollection tags)
-        //{
-        //    foreach (var set in styleSets)
-        //    {
-        //        if (TagParser.GetStyleEntry(tags, set).Name != TagParser.defaultStyle.Name)
-        //            return true;
-        //    }
-        //    return false;
-        //}
 
         public bool EntryMatchesSet(TagsCollectionBase tags)
         {
@@ -2565,9 +2555,7 @@ namespace PraxisCore.PbfReader
                         if (place == null) //Probably shouldn't happen here, but lets check anyways.
                             return; // continue;
 
-                        //TODO:  redo this to check the pluscodes for the Envelope corners, and do a search for all the ones between those.
                         double south = 90, west = 180, north = -90, east = -180;
-
                         foreach (var coordinate in place.ElementGeometry.Envelope.Coordinates)
                         {
                             if (coordinate.X < west)
@@ -2721,7 +2709,6 @@ namespace PraxisCore.PbfReader
                     //sw1.Stop();
                     Log.WriteLog("Block " + thisBlockId + " group " + groupId + " converted in " + sw1.Elapsed);
 
-                    //TODO: new plan:
                     // take resultsList, group by the string in the tuple, then foreach group create the file, merge it into the final one, 
                     // ans save stuff.
 
@@ -2809,40 +2796,7 @@ namespace PraxisCore.PbfReader
                         }
                         zip.Dispose();
                     });
-
-
-                    //Original plan:
-                    //Each group causes a write to disk, so we can resume if the app crashes.
-                    //Log.WriteLog("We have " + Cell4ToWrite.Count() + " Cell4 entries to write to disk");
-                    //Log.WriteLog("We have " + Cell4ToWrite.SelectMany(s => s.Value.Values.SelectMany(v => v.entries)).Count() + " Cell6 entries to write to disk");
-
-                    //Write them
-                    //foreach (var cell4 in Cell4ToWrite) //This can be parallel since its all separate files.
-                    //Parallel.ForEach(Cell4ToWrite, (cell4) =>
-                    //{
-                    //    ZipArchive zip = null;
-                    //    if (existingFiles.ContainsKey(cell4.Key))
-                    //    {
-                    //        zip = existingFiles[cell4.Key];
-                    //        zip.Dispose();
-                    //    }
-                    //    zip = ZipFile.Open(outputDirBase + cell4.Key + ".zip", ZipArchiveMode.Update);
-                    //    foreach (var cell6 in cell4.Value)
-                    //    {
-                    //        var entry = zip.GetEntry(cell6.Key + ".json");
-                    //        if (entry == null)
-                    //            entry = zip.CreateEntry(cell6.Key + ".json", CompressionLevel.Optimal);
-                    //        using var stream = entry.Open();
-                    //        using (var streamWriter = new StreamWriter(stream))
-                    //            streamWriter.Write(JsonSerializer.Serialize(cell6.Value));
-                    //    }
-                    //    zip.Dispose();
-                    //});
-
-                    //existingFiles.Clear();
-                    //Cell4ToWrite.Clear();
-                    //Cell6ToWrite.Clear();
-
+                    
                     SaveCurrentBlockAndGroup(block, groupId);
                     sw1.Stop();
                     Log.WriteLog("Block " + block + " Group " + groupId + " parsed to files in: " + sw1.Elapsed);
