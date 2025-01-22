@@ -1,6 +1,5 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
-using PraxisCore.Standalone;
 using PraxisCore.Support;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
@@ -8,12 +7,12 @@ using SixLabors.ImageSharp.Drawing;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using System.Linq;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 
-namespace PraxisCore {
+namespace PraxisCore
+{
     /// <summary>
     /// All functions related to generating or expiring map tiles. Both PlusCode sized tiles for gameplay or SlippyMap tiles for a webview.
     /// </summary>
@@ -94,45 +93,6 @@ namespace PraxisCore {
                 p = new PatternPen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX, linesAndGaps);
             }
             return p;
-        }
-
-        /// <summary>
-        /// Draw square boxes around each area to approximate how they would behave in an offline app
-        /// </summary>
-        /// <param name="info">the image information for drawing</param>
-        /// <param name="items">the elements to draw.</param>
-        /// <returns>byte array of the generated .png tile image</returns>
-        public static byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items) {
-            var image = new Image<Rgba32>(info.imageSizeX, info.imageSizeY);
-            var bgColor = Rgba32.ParseHex("00000000");
-            image.Mutate(x => x.Fill(bgColor));
-            var fillColor = Rgba32.ParseHex("000000");
-            var strokeColor = Rgba32.ParseHex("000000");
-
-            var placeInfo = Standalone.Standalone.GetPlaceInfo(items.Where(i => i.IsGameElement).ToList());
-
-            //this is for rectangles.
-            foreach (var pi in placeInfo) {
-                var rect = PlaceInfoToRect(pi, info);
-                fillColor = Rgba32.ParseHex(TagParser.PickStaticColorByName(pi.Name));
-                image.Mutate(x => x.Fill(fillColor, rect));
-                image.Mutate(x => x.Draw(strokeColor, 3, rect));
-            }
-
-            var fonts = new SixLabors.Fonts.FontCollection();
-            var family = fonts.Add("fontHere.ttf");
-            var font = family.CreateFont(12, FontStyle.Regular);
-
-            image.Mutate(x => x.Flip(FlipMode.Vertical)); ; //inverts the inverted image again!
-            foreach (var pi in placeInfo) {
-                var rect = PlaceInfoToRect(pi, info);
-                image.Mutate(x => x.DrawText(pi.Name, font, strokeColor, new PointF((float)(pi.lonCenter * info.pixelsPerDegreeX), (float)(pi.latCenter * info.pixelsPerDegreeY))));
-            }
-
-            image.Mutate(x => x.Flip(FlipMode.Vertical)); //Plus codes are south-to-north, so invert the image to make it correct.
-            var ms = new MemoryStream();
-            image.SaveAsPng(ms);
-            return ms.ToArray();
         }
 
         /// <summary>
@@ -448,16 +408,6 @@ namespace PraxisCore {
         public static SixLabors.ImageSharp.PointF PointToPointF(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY) {
             var coord = place.Coordinate;
             return new SixLabors.ImageSharp.PointF((float)((coord.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((coord.Y - drawingArea.SouthLatitude) * (1 / resolutionY)));
-        }
-
-        public static Rectangle PlaceInfoToRect(StandaloneDbTables.PlaceInfo2 pi, ImageStats info) {
-            Rectangle r = new Rectangle();
-            r.Width = (int)(pi.width * info.pixelsPerDegreeX);
-            r.Height = (int)(pi.height * info.pixelsPerDegreeY);
-            r.X = (int)(pi.lonCenter * info.pixelsPerDegreeX);
-            r.Y = (int)(pi.latCenter * info.pixelsPerDegreeY);
-
-            return r;
         }
     }
 }

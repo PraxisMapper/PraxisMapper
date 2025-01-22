@@ -25,6 +25,10 @@ using System.Threading.Tasks;
 //planet.osm uses multiple groups in each of its blocks. This makes the primary chokepoint on reading the file become deserializing blocks
 //through protobuf code. Especially in worst cases, where it's got to load a whole block of nearly 100,000 points for one of them, multiple times.
 //Until them, planet.osm should be saved for smaller styleSets, like adminBounds(filled) or suggestedGameplay.
+
+//NOTE: 
+//An attempt to write directly to offline format was made here. It was removed, as it is dramatically slower than loading OfflinePlaces and writing them out from there.
+//(The cost of indexing is far, far lower than the cost of sorting and writing each zip file every time it's edited)
 namespace PraxisCore.PbfReader
 {
     public record struct IndexInfo(int blockId, int groupId, byte groupType, long minId, long maxId); //trying this as a struct. 22 bytes instead of 16 as suggested, but about 4% faster.
@@ -33,9 +37,9 @@ namespace PraxisCore.PbfReader
     /// </summary>
     public class PbfReader
     {
-        //The 6th generation of logic for pulling geometry out of a pbf file. This one is written specfically for PraxisMapper, and
-        //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types now that there's our own
-        //FeatureInterpreter instead of theirs. 
+        //The 7th generation of logic for pulling geometry out of a pbf file. This one is written specfically for PraxisMapper, and
+        //doesn't depend on OsmSharp for reading the raw data now. OsmSharp's still used for object types, but we have our own
+        //FundamentalOsm class for holding data to pass to a new FeatureInterpreter
 
         static readonly int initialCapacity = 8009; //ConcurrentDictionary says initial capacity shouldn't be divisible by a small prime number, so i picked the prime closes to 8,000 for initial capacity
         static readonly int initialConcurrency = Environment.ProcessorCount;
@@ -131,147 +135,6 @@ namespace PraxisCore.PbfReader
             tokensource.Cancel();
         }
 
-        //NOTE: I do not want to export processed data, that can be done on load.
-        //private void ReprocessFile(string filename)
-        //{
-        //    //load up each line of a file from a previous run, and then re-process it according to the current settings.
-        //    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-        //    Log.WriteLog("Loading " + filename + " for processing at " + DateTime.Now);
-        //    sw.Start();
-        //    var original = new PlaceExport(filename);
-        //    var reproced = new PlaceExport(Path.GetFileNameWithoutExtension(filename) + "-reprocessed.pmd");
-
-        //    var md = original.GetNextPlace();
-        //    while (md != null)
-        //    {
-        //        if (bounds != null && (!bounds.Intersects(md.ElementGeometry.EnvelopeInternal)))
-        //            continue;
-
-        //        if (processingMode == "center")
-        //            md.ElementGeometry = md.ElementGeometry.Centroid;
-        //        else if (processingMode == "expandPoints")
-        //        {
-        //            //Declare that Points aren't sufficient for this game's purpose, expand them to Cell8 size for now
-        //            //Because actually upgrading them to the geometry for some containing shape requires a full global-loaded database.
-        //            if (md.SourceItemType == 1) //Only nodes get upgraded.
-        //                md.ElementGeometry = md.ElementGeometry.Buffer(ConstantValues.resolutionCell8);
-        //        }
-        //        else if (processingMode == "minimize") //This may be removed in the near future, since this has a habit of making invalid geometry.
-        //        {
-        //            styleSet = "suggestedmini"; //Forcing for now on this option.
-        //            try
-        //            {
-        //                md.ElementGeometry = NetTopologySuite.Simplify.TopologyPreservingSimplifier.Simplify(md.ElementGeometry, ConstantValues.resolutionCell10); //rounds off any points too close together.
-        //                md.ElementGeometry = Singletons.reducer.Reduce(md.ElementGeometry);
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                Log.WriteLog("Couldn't reduce element " + md.SourceItemID + ", saving as-is (" + ex.Message + ")");
-        //            }
-        //        }
-        //        reproced.AddEntry(md);
-        //    }
-        //}
-
-        /// <summary>
-        /// Runs through the entire process to convert a PBF file into usable PraxisMapper data. The server bounds for this process must be identified via other functions.
-        /// </summary>
-        /// <param name="filename">The path to the PBF file to read</param>
-        /// <param name="onlyTagMatchedEntries">If true, only load data in the file that meets a rule in TagParser. If false, processes all elements in the file.</param>
-        public void ProcessFile(string filename, long relationId = 0)
-        {
-            try
-            {
-                //if (reprocessFile)
-                //{
-                //    ReprocessFile(filename);
-                //    return;
-                //}
-
-                Stopwatch sw = new Stopwatch();
-                sw.Start();
-
-                PrepareFile(filename);
-                filenameHeader += styleSet + "-";
-
-                if (relationId != 0)
-                {
-                    filenameHeader += relationId.ToString() + "-";
-                    //Get the source relation first
-                    var relation = MakeCompleteRelation(relationId);
-                    var NTSrelation = GeometrySupport.ConvertOsmEntryToPlace(relation, styleSet);
-                    bounds = NTSrelation.ElementGeometry.EnvelopeInternal;
-                }
-
-                int nextGroup = FindLastCompletedGroup() + 1; //saves -1 at the start of a block, so add this to 0.
-                int currentCount = 0;
-
-                if (!lowResourceMode) //typical path
-                {
-                    for (var block = nextBlockId; block >= firstWayBlock; block--)
-                    {
-                        var blockData = GetBlock(block);
-                        if (nextGroup >= blockData.primitivegroup.Count)
-                            nextGroup = 0;
-                        for (int i = nextGroup; i < blockData.primitivegroup.Count; i++)
-                        {
-                            try
-                            {
-                                var group = blockData.primitivegroup[i];
-                                System.Diagnostics.Stopwatch swGroup = new System.Diagnostics.Stopwatch();
-                                swGroup.Start();
-                                int thisBlockId = block;
-                                var geoData = GetGeometryFromGroup(thisBlockId, group, true);
-                                //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
-                                //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
-                                if (geoData != null) //This process function is sufficiently parallel that I don't want to throw it off to a Task. The only sequential part is writing the data to the file, and I need that to keep accurate track of which blocks have beeen written to the file.
-                                {
-                                    currentCount = ProcessReaderResults(geoData, block, i);
-                                }
-                                SaveCurrentBlockAndGroup(block, i);
-                                swGroup.Stop();
-                                if (group.relations.Count > 0 && swGroup.ElapsedMilliseconds >= 100)
-                                    timeListRelations.Add(swGroup.Elapsed);
-                                else if (swGroup.ElapsedMilliseconds >= 100)
-                                    timeListWays.Add(swGroup.Elapsed);
-                                Log.WriteLog("Block " + block + " Group " + i + " processed " + currentCount + " in " + swGroup.Elapsed);
-                            }
-                            catch (Exception ex)
-                            {
-                                Log.WriteLog("Error: " + ex.Message + ex.StackTrace, Log.VerbosityLevels.Errors);
-                                Log.WriteLog("Failed to process block " + block + " normally, trying the low-resourse option", Log.VerbosityLevels.Errors);
-                                Thread.Sleep(3000); //Not necessary, but I want to give the GC a chance to clean up stuff before we pick back up.
-                                LastChanceRead(block);
-                            }
-                        }
-                        nextGroup = 0;
-                        SaveCurrentBlockAndGroup(block - 1, -1); //save last completed group, not next group to run, so make this -1 at end of a block.
-                    }
-                    Log.WriteLog("Processing all node blocks....");
-                    ProcessAllNodeBlocks(firstWayBlock);
-                }
-                else
-                {
-                    //low resource mode
-                    //run each entry one at a time, save to disk immediately, don't multithread.
-                    for (var block = nextBlockId; block > 0; block--)
-                    {
-                        LastChanceRead(block);
-                    }
-                }
-                Close();
-                CleanupFiles();
-                sw.Stop();
-                Log.WriteLog("File completed at " + DateTime.Now + ", session lasted " + sw.Elapsed);
-            }
-            catch (Exception ex)
-            {
-                while (ex.InnerException != null)
-                    ex = ex.InnerException;
-                Log.WriteLog("Error processing file: " + ex.Message + ex.StackTrace);
-            }
-        }
-
         public void ProcessFileV2(string filename, long relationId = 0)
         {
             //Most of this might be handlable by updating ProcessReaderResults and a few smaller tweaks to the ProcessFile loop?
@@ -316,10 +179,7 @@ namespace PraxisCore.PbfReader
             ConcurrentBag<FundamentalOsm> geoData;
             List<long> placeIds;
             PrimitiveBlock blockData;
-            List<byte[]> strings;
             TagsCollection tempTags = new TagsCollection();
-            var entryCounter = 0;
-            bool noMatches = true;
             for (var block = nextBlockId; block < Bcount; block++)
             {
                 blockData = GetBlock(block, false);
@@ -362,7 +222,6 @@ namespace PraxisCore.PbfReader
                     }
 
                     geoData = GetGeometryFromGroupAsCoords(thisBlockId, group, true);
-                    //group = null;
                     changed = 0;
                     //There are large relation blocks where you can see how much time is spent writing them or waiting for one entry to
                     //process as the apps drops to a single thread in use, but I can't do much about those if I want to be able to resume a process.
@@ -415,7 +274,6 @@ namespace PraxisCore.PbfReader
                         }
                         else
                         {
-
                             List<DbTables.Place> processed = geoData.AsParallel().Select(g =>
                             {
                                 if (g == null)
@@ -460,9 +318,7 @@ namespace PraxisCore.PbfReader
                                 db.Database.SetCommandTimeout(600);
                                 if (processingMode == "offline")
                                 {
-                                    //Log.WriteLog("Converting items to offline format");
-                                    var entries = processed.Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet));//.ToList();
-                                                                                                                      //Log.WriteLog("Items converted");
+                                    var entries = processed.Select(p => DbTables.OfflinePlace.FromPlace(p, styleSet));
                                     db.OfflinePlaces.AddRange(entries);
                                 }
                                 else
@@ -483,21 +339,15 @@ namespace PraxisCore.PbfReader
                                         }
                                     }
                                 }
-                                //check if data is removed - NOPE. This wipes out existing data if we're using a different styleSet or source file. 
-                                //TODO Delete needs to be its own pass, matching everything on an single extract file. 
-                                //var removed = currentData.Values.Where(c => !processed.Any(p => p.SourceItemID == c.SourceItemID)).ToList();
-                                //db.Places.RemoveRange(removed);
 
                                 try
                                 {
-                                    //Log.WriteLog("Writing to DB");
                                     changed = db.SaveChanges(); //This count includes tags and placedata.
-                                                                //Log.WriteLog("DB Save Completed");
                                 }
                                 catch (Exception ex)
                                 {
                                     //TODO: more precise error handling and potentially in-line recovery
-                                    //"max_allowed_packet" error may be fixable by splitting up the write commands?
+                                    //"max_allowed_packet" error may be fixable by splitting up the write commands or passing a command to MariaDB
                                     var message = ex.Message;
                                     while (ex.InnerException != null)
                                     {
@@ -524,7 +374,6 @@ namespace PraxisCore.PbfReader
                                 }
                                 db.Dispose();
                             }
-
                         }
                     }
                     geoData = null;
@@ -575,17 +424,13 @@ namespace PraxisCore.PbfReader
 
         public bool CanSkipGroup(int itemType, PrimitiveGroup group, List<byte[]> strings)
         {
-            var noMatches = true;
             var tempTags = new TagsCollection(10);
             if (itemType == 1) //Nodes do this slightly differently than other groups.
             {
                 if (group.dense.keys_vals.Count == group.dense.id.Count)
-                {
-                    //Log.WriteLog("Skipped untagged node group in " + sw.Elapsed.ToString());
                     return true;
-                }
-                var entryCounter = 0;
 
+                var entryCounter = 0;
                 for (int i = 0; i < group.dense.keys_vals.Count; i++)
                 {
                     if (group.dense.keys_vals[i] == 0)
@@ -609,11 +454,7 @@ namespace PraxisCore.PbfReader
                         );
                     tempTags.Add(tag);
                 }
-                if (noMatches)
-                {
-                    //Log.WriteLog("Skipped matchless block " + block + " group " + groupId + " in " + sw.Elapsed.ToString());
-                    return true;
-                }
+                return true;
             }
             else if (itemType == 2)
             {
@@ -629,18 +470,12 @@ namespace PraxisCore.PbfReader
                     }
                     if (EntryMatchesSet(tempTags))
                     {
-                        //noMatches = false;
                         return false;
-                        //break;
                     }
                     tempTags.Clear();
                 }
-                if (noMatches)
-                {
-                    //Log.WriteLog("Skipped matchless block " + block + " group " + groupId + " in " + sw.Elapsed.ToString());
-                    return true;
-                    //continue;
-                }
+                return true;
+                
             }
             else if (itemType == 3)
             {
@@ -657,16 +492,10 @@ namespace PraxisCore.PbfReader
                     if (EntryMatchesSet(tempTags))
                     {
                         return false;
-                        //noMatches = false;
-                        //break;
                     }
                     tempTags.Clear();
                 }
-                if (noMatches)
-                {
-                    //Log.WriteLog("Skipped matchless block " + block + " group " + groupId + " in " + sw.Elapsed.ToString());
-                    return true;
-                }
+                return true;
             }
             return false;
         }
@@ -847,11 +676,6 @@ namespace PraxisCore.PbfReader
                 byte[] thisblob = new byte[bh.datasize];
                 fs.ReadExactly(thisblob, 0, bh.datasize);
 
-                //Action<byte[], int> process = (blob, count) => ProcessBlockForIndex(blob, count);
-
-                //waiting.Add(Task.Run(process(thisblob, blockCounter));
-                //ProcessBlockForIndex(thisblob, blockCounter);
-
                 var passedBC = blockCounter;
                 //NOTE: this might be a good place to look at variable capture instead of letting thisblock get captured by
                 //the lambda itself. Perhaps this is a good candidate for an action.
@@ -894,35 +718,6 @@ namespace PraxisCore.PbfReader
 
             sw.Stop();
             Log.WriteLog("File indexed in " + sw.Elapsed);
-        }
-
-        private List<IndexInfo> ProcessBlockForIndex(byte[] thisblob, int passedBC)
-        {
-            List<IndexInfo> indexInfos = new List<IndexInfo>();
-            var pb2 = DecodeBlock(thisblob);
-
-            for (int i = 0; i < pb2.primitivegroup.Count; i++) //Planet.osm uses several primitivegroups per block, extracts usually use one.
-            {
-                var group = pb2.primitivegroup[i];
-                {
-                    if (group.ways.Count > 0)
-                    {
-                        //wayCounter++;
-                        indexInfos.Add(new IndexInfo(passedBC, i, 2, group.ways.First().id, group.ways.Last().id));
-                    }
-                    else if (group.relations.Count > 0)
-                    {
-                        //relationCounter++;
-                        indexInfos.Add(new IndexInfo(passedBC, i, 3, group.relations.First().id, group.relations.Last().id));
-                    }
-                    else if (group.dense != null)
-                    {
-                        indexInfos.Add(new IndexInfo(passedBC, i, 1, group.dense.id[0], group.dense.id.Sum()));
-                    }
-                }
-            }
-            pb2 = null;
-            return indexInfos;
         }
 
         private void LoadIndex()
@@ -981,7 +776,6 @@ namespace PraxisCore.PbfReader
         /// </summary>
         /// <param name="blockId">the block to read from the file</param>
         /// <returns>the PrimitiveBlock requested</returns>
-        /// 
         private PrimitiveBlock GetBlockFromFile(long blockId)
         {
             long pos1 = blockPositions[blockId];
@@ -1712,7 +1506,7 @@ namespace PraxisCore.PbfReader
         /// <param name="blockOffset">the offset for the block currently loaded</param>
         /// <param name="blockGranularity">the granularity value of the block data is loaded from</param>
         /// <returns>a double represeting the lat or lon value for the given dense values</returns>
-        private static double DecodeLatLon(long valueOffset, long blockOffset, long blockGranularity)
+        private static double DecodeLatLon(long valueOffset, long blockOffset, long blockGranularity) //TODO: good candidate for [MethodImpl(MethodImplOptions.AggressiveInlining)]?
         {
             return .000000001 * (blockOffset + (blockGranularity * valueOffset));
         }
@@ -1883,7 +1677,6 @@ namespace PraxisCore.PbfReader
         {
             Task.Run(() =>
             {
-
                 while (!token.IsCancellationRequested)
                 {
                     var relationGroupsLeft = relationIndex.Count(w => w.blockId > nextBlockId);
@@ -1963,7 +1756,7 @@ namespace PraxisCore.PbfReader
                 db.SaveChanges();
                 return actualCount;
             }
-            else if (splitByStyleSet)
+            else if (splitByStyleSet) //TODO: This block is only accessible via the original processfile. Restore this functionality somehow?
             {
                 saveFilename = outputPath + Path.GetFileNameWithoutExtension(fi.Name) + "-";
 
@@ -2110,9 +1903,6 @@ namespace PraxisCore.PbfReader
                                 activeBlocks.TryRemove(block.Key, out _);
 
                         Log.WriteLog("Percentage of runtime spent in GC: " + data.PauseTimePercentage.ToString());
-                        //Log.WriteLog("Objects pending finalization: " + data.FinalizationPendingCount.ToString());
-                        //Log.WriteLog("Pinned objects: " + data.PinnedObjectsCount.ToString());
-
                         GC.Collect();
                         Log.WriteLog("Force-dump and GC completed at " + DateTime.Now.ToString());
                     }
@@ -2286,9 +2076,6 @@ namespace PraxisCore.PbfReader
                 var nodesByBlockGroup = nodesByIndexInfo.ToLookup(k => k.Value, v => v.Key); //hint(Position in array), nodeIDs
 
                 finalway.Nodes = new OsmSharp.Node[entryCount];
-                //Each way is already in its own thread, I think making each of those fire off 1 thread per node block referenced is excessive.
-                //and may well hurt performance in most cases due to overhead and locking the concurrentdictionary than it gains.
-                //Dictionary<long, OsmSharp.Node> AllNodes = new Dictionary<long, OsmSharp.Node>(entryCount);
                 Dictionary<long, Coordinate> AllNodes = new Dictionary<long, Coordinate>(entryCount);
                 foreach (var block in nodesByBlockGroup)
                 {
@@ -2396,7 +2183,6 @@ namespace PraxisCore.PbfReader
                 if (!canProcess)
                     return null;
 
-
                 TagsCollection tags = GetTags(stringData, rel.keys, rel.vals);
                 //TODO: test and move this logic to allow PBFReader to handle multiple style sets at once.
                 if (ignoreUnmatched)
@@ -2408,14 +2194,7 @@ namespace PraxisCore.PbfReader
                 List<Coordinate[]> outers = new List<Coordinate[]>();
                 List<Coordinate[]> inners = new List<Coordinate[]>();
 
-                //If I only want elements that show up in the map, and exclude areas I don't currently match,
-                //I have to knows my tags BEFORE doing the rest of the processing.
-                //CompleteRelation r = new CompleteRelation();
-                //r.Id = relationId;
-                //r.Tags = tags;
-
                 int capacity = rel.memids.Count;
-                //r.Members = new CompleteRelationMember[capacity];
                 int hint = -1;
 
                 bool inBounds = false;
@@ -2459,361 +2238,6 @@ namespace PraxisCore.PbfReader
                 Log.WriteLog("relation failed:" + ex.Message, Log.VerbosityLevels.Errors);
                 return null;
             }
-        }
-
-        //This is approaching ready to test. Will need to set up Ohio and an output folder and start blasting through thi
-        public void ReadDirectlyToOffline(string filename)
-        {
-            //Find the pbf/pmd files in the folder (can I skip doing 2 runs for 2 style sets?)
-            //read them and make the offlineV2 zips for each item found
-            //This skips the database and indexing, which might save time versus the 2-step plan
-            //if there's less time spent updating/readding entries in zip files.
-
-            //TODO: this does not currently allow for updating of existing elements, which is fine for now.
-
-            //this may or may not make it into the next release
-
-            //Prep step 1: get a list of polygons ready for checking what goes where
-            //WAIT ALT IDEA: Maybe instead of 400 polys here, I make each row/column 1 geometry,
-            //and check where rows and columns overlap? Rougly 10x faster, and most will only match in 1 anyways.
-            //Its when we 
-            //var checkPolys = new Dictionary<string, IPreparedGeometry>();
-            //foreach (var pair in OfflineData.GetCell2Combos())
-            //{
-            //    checkPolys.Add(pair, Singletons.preparedGeometryFactory.Create(pair.ToPolygon()));
-            //}
-
-
-            /* Mathing out the best reasonable set of ideas here
-             * ASSUMING 1 Cell4 matches:
-             * Check all Cell2s, then all Cell4s in it: 400 + 400 checks
-             * Check all Cell2Rows, then all Cell2 columns: 10 + 20 checks, (may be worse in worst-case?)
-             * Check All Cell2Rows, and all CEll2s in that row: 10 + 20 checks
-             * 
-             * Now, with 8 for something like Russia or the USA: (assume its 3x3 and missing a corner, so it shows up 8 but is wide enough for 3 on either axis.
-             * Check all Cell2s, then all Cell4s in them: 400 + 3200 checks
-             * Check all Cell2Rows, then all Cell2 columns: 10 + 20 checks, with a false-positive result to process
-             * Check All Cell2Rows, and all CEll2s in that row: 10 + 60 checks
-             */
-
-            var outputDirBase = Path.GetFileNameWithoutExtension(filename) + "\\";
-            Directory.CreateDirectory(outputDirBase);
-
-
-            var swTotal = Stopwatch.StartNew();
-            var sw1 = Stopwatch.StartNew();
-            PrepareFile(filename);
-            var Bcount = BlockCount();
-            if (nextBlockId == Bcount - 1)
-                nextBlockId = 1; //0 is the header.
-
-            //Prep step 1.5: Create all the stuff we'll need to store for writing later.
-            //This would be the Cell4 file, and all of its Cell6 sub-items. 
-            Dictionary<string, Dictionary<string, OfflineData.OfflineDataV2>> Cell4ToWrite = new Dictionary<string, Dictionary<string, OfflineData.OfflineDataV2>>();
-            Dictionary<string, OfflineData.OfflineDataV2> Cell6ToWrite = new Dictionary<string, OfflineData.OfflineDataV2>();
-            Dictionary<string, ZipArchive> existingFiles = new Dictionary<string, ZipArchive>();
-
-            var thisBlockId = -1;
-            PrimitiveBlock blockData;
-            var resultsList = new ConcurrentBag<Tuple<string, List<OfflineData.OfflinePlaceEntry>>>();
-            for (var block = nextBlockId; block < Bcount; block++)
-            {
-                blockData = GetBlock(block, false);
-
-                int nextGroup = 0;
-                int itemType = 0;
-                if (block < firstWayBlock)
-                    itemType = 1;
-                else if (block < relationIndex[0].blockId)
-                    itemType = 2;
-                else
-                    itemType = 3;
-
-                thisBlockId = block;
-                for (int groupId = nextGroup; groupId < blockData.primitivegroup.Count; groupId++)
-                {
-                    sw1.Restart();
-                    var group = blockData.primitivegroup[groupId];
-                    if (CanSkipGroup(itemType, group, blockData.stringtable.s))
-                    {
-                        Log.WriteLog("Skipped block " + thisBlockId + " group " + groupId + " due to no matches");
-                        continue;
-                    }
-
-                    //Prep step 2: for each OSM element, check tags to see if they're in the style sets we're searching.
-                    //if not, skip it. If so, build the element into Geometry, then search to see where we need to save the results to
-                    //Remember, we're loading data a Cell4 at a time, saving to Cell6 data after that.
-                    var geoList = GetGeometryFromGroupAsCoords(thisBlockId, group, true);
-                    Log.WriteLog("Found " + geoList.Count() + " entries");
-                    resultsList.Clear();
-                    //foreach (var geo in geoList)
-                    Parallel.ForEach(geoList, (geo) =>
-                    {
-                        //NOTE: GetGeoFromGroup will match on any active styleSet, but this doesn't necessarily mean I KNOW which one it matches
-                        //So I might need to check what the tags on geo match with and pass that styleset in here.
-                        var place = GeometrySupport.ConvertFundamentalOsmToOfflinePlace(geo, styleSet);
-                        if (place == null) //Probably shouldn't happen here, but lets check anyways.
-                            return; // continue;
-
-                        double south = 90, west = 180, north = -90, east = -180;
-                        foreach (var coordinate in place.ElementGeometry.Envelope.Coordinates)
-                        {
-                            if (coordinate.X < west)
-                                west = coordinate.X;
-                            if (coordinate.X > east)
-                                east = coordinate.X;
-                            if (coordinate.Y < south)
-                                south = coordinate.Y;
-                            if (coordinate.Y > north)
-                                north = coordinate.Y;
-                        }
-
-                        var swPlusCode = OpenLocationCode.Encode(south, west).Replace("+", "");
-                        var nePlusCode = OpenLocationCode.Encode(north, east).Replace("+", "");
-
-                        var startingGrid = swPlusCode.Select(s => OpenLocationCode.DigitValueOf(s)).ToArray();
-                        var endingGrid = nePlusCode.Select(s => OpenLocationCode.DigitValueOf(s)).ToArray();
-
-                        //Now I can use the differences here to create data for each Cell6 this element might touch.
-                        //This looks kinda dumb but it should work.
-                        for (var cell2Y = startingGrid[0]; cell2Y <= endingGrid[0]; cell2Y++)
-                            for (var cell2X = startingGrid[1]; cell2X <= endingGrid[1]; cell2X++)
-                                for (var cell4Y = startingGrid[2]; cell4Y <= endingGrid[2]; cell4Y++)
-                                    for (var cell4X = startingGrid[3]; cell4X <= endingGrid[3]; cell4X++)
-                                    {
-                                        var thisCell4Code = char.ToString(OpenLocationCode.CodeAlphabet[cell2Y]) + char.ToString(OpenLocationCode.CodeAlphabet[cell2X])
-                                            + char.ToString(OpenLocationCode.CodeAlphabet[cell4Y]) + char.ToString(OpenLocationCode.CodeAlphabet[cell4X]);
-                                        if (!thisCell4Code.ToPolygon().Intersects(place.ElementGeometry)) //For larger objects, this will save a ton of time.
-                                            continue;
-
-                                        for (var cell6Y = startingGrid[4]; cell6Y <= endingGrid[4]; cell6Y++)
-                                            for (var cell6X = startingGrid[5]; cell6X <= endingGrid[5]; cell6X++)
-                                            {
-                                                //rebuild the plus code
-                                                var thisCell6 = char.ToString(OpenLocationCode.CodeAlphabet[cell2Y]) + char.ToString(OpenLocationCode.CodeAlphabet[cell2X])
-                                                    + char.ToString(OpenLocationCode.CodeAlphabet[cell4Y]) + char.ToString(OpenLocationCode.CodeAlphabet[cell4X])
-                                                    + char.ToString(OpenLocationCode.CodeAlphabet[cell6Y]) + char.ToString(OpenLocationCode.CodeAlphabet[cell6X]);
-
-                                                if (!thisCell6.ToPolygon().Intersects(place.ElementGeometry)) //rectangle polygons use the same intersects as preparedgeometry.
-                                                    continue;
-
-                                                //New plan: do all the work multithreading to create entries, then do final file stuff 
-                                                //after all of that in one thread.
-
-                                                //Original plan: do a bunch of work to update files in procesing
-                                                //OfflineData.OfflineDataV2 thisOfflineData = null;
-
-                                                //Dictionary<string, OfflineData.OfflineDataV2> thisCell4 = null; //holds all the cell6s we're going to update.
-                                                ////check for data
-                                                //if (Cell4ToWrite.ContainsKey(thisCell4Code))
-                                                //{
-                                                //    // load existing cell4 info.
-                                                //    thisCell4 = Cell4ToWrite[thisCell4Code];
-                                                //}
-                                                //else
-                                                //{
-                                                //    if (existingFiles.ContainsKey(thisCell4Code))
-                                                //    {
-                                                //        var existingEntry = existingFiles[thisCell4Code].GetEntry(thisCell6 + ".json");
-                                                //        var existStream = existingEntry.Open();
-                                                //        thisCell4 = JsonSerializer.Deserialize<Dictionary<string, OfflineData.OfflineDataV2>>(existStream);
-                                                //        existStream.Close();
-                                                //    }
-                                                //    else
-                                                //    {
-                                                //        //else create it, we'll write to disk after the group items are processed.
-                                                //        if (File.Exists(outputDirBase + thisCell4Code + ".zip"))
-                                                //        {
-                                                //            var za = ZipFile.Open(outputDirBase + thisCell4Code + ".zip", ZipArchiveMode.Read); //opens or creates the existing file.
-                                                //            existingFiles.Add(thisCell4Code, za);
-                                                //        }
-                                                //        thisCell4 = new Dictionary<string, OfflineData.OfflineDataV2>();
-                                                //        Cell4ToWrite.Add(thisCell4Code, thisCell4);
-                                                //    }
-                                                //}
-
-                                                //if (thisCell4.ContainsKey(thisCell6)) //we have already done the checks on disk for this group
-                                                //{
-                                                //    thisOfflineData = thisCell4[thisCell6];
-                                                //}
-                                                //else
-                                                //{
-                                                //    if (existingFiles.ContainsKey(thisCell4Code))
-                                                //    {
-                                                //        var zip = existingFiles[thisCell4Code];
-                                                //        var entry = zip.GetEntry(thisCell6 + ".json");
-                                                //        if (entry != null)
-                                                //        {
-                                                //            var entryStream = entry.Open();
-                                                //            var loading = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(entryStream);
-                                                //            thisCell4.Add(thisCell6, loading);
-                                                //            thisOfflineData = loading;
-                                                //            entryStream.Close(); entryStream.Dispose();
-                                                //        }
-                                                //    }
-                                                //    if (thisOfflineData == null)
-                                                //    {
-                                                //        thisOfflineData = new OfflineData.OfflineDataV2();
-                                                //        thisOfflineData.olc = thisCell6;
-                                                //        thisOfflineData.version = 2;
-                                                //        thisOfflineData.dateGenerated = DateTime.UtcNow.ToUnixTime();
-                                                //        thisOfflineData.entries = new Dictionary<string, List<OfflineData.OfflinePlaceEntry>>();
-                                                //        thisOfflineData.nameTable = new Dictionary<int, string>();
-                                                //        thisCell4.Add(thisCell6, thisOfflineData);
-                                                //    }
-                                                //}
-
-                                                //So now, we should have everything linked up nicely.
-
-
-
-                                                //int nameID = -1;
-                                                //if (!string.IsNullOrWhiteSpace(name))
-                                                //{
-                                                //    var nameKey = thisOfflineData.nameTable.FirstOrDefault(n => n.Value == name);
-                                                //    if (nameKey.Key <= 0) //wont be null from FirstOrDefault?
-                                                //    {
-                                                //        nameID = thisOfflineData.nameTable.Count() + 1;
-                                                //        thisOfflineData.nameTable.Add(nameID, name);
-                                                //    }
-                                                //    else
-                                                //        nameID = nameKey.Key;
-                                                //}
-
-                                                var entries = OfflineData.MakeEntriesForOnePlace(thisCell6, styleSet, geo);
-                                                if (entries == null)
-                                                    continue;
-                                                var name = TagParser.GetName(geo.tags);
-                                                if (!string.IsNullOrWhiteSpace(name))
-                                                {
-                                                    foreach (var e in entries)
-                                                    {
-                                                        e.name = name;
-                                                    }
-                                                    //if (thisOfflineData.entries.ContainsKey(styleSet))
-                                                    //thisOfflineData.entries[styleSet].AddRange(entries);
-                                                    //else
-                                                    //thisOfflineData.entries.Add(styleSet, entries);
-
-
-                                                }
-                                                //NOTE: This does not track which style these entries were. I COULD make it another tuple entry.
-                                                resultsList.Add(new Tuple<string, List<OfflineData.OfflinePlaceEntry>>(thisCell6, entries));
-
-                                                //what here? After doing all Cell6s for this place at this indent.
-                                                //Probably just move on to the next block?
-                                            }
-                                    }
-                    });//end foreach geo.
-
-                    //sw1.Stop();
-                    Log.WriteLog("Block " + thisBlockId + " group " + groupId + " converted in " + sw1.Elapsed);
-
-                    // take resultsList, group by the string in the tuple, then foreach group create the file, merge it into the final one, 
-                    // ans save stuff.
-
-                    var jso = new JsonSerializerOptions() { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull};
-                    var groups = resultsList.GroupBy(t => t.Item1);
-                    var finalMadeEntries = new ConcurrentBag<Tuple<string, OfflineData.OfflineDataV2>>();
-                    Parallel.ForEach(groups, (g) => { 
-                        var cell6 = g.Key;
-                        var entries = new  List<OfflineData.OfflinePlaceEntry>();
-                        foreach (var gg in g)
-                            entries.AddRange(gg.Item2);
-
-
-                        var counter = 1;
-                        var tempnametable = new Dictionary<string, int>();
-                        foreach (var entry in entries)
-                        {
-                            if (entry.name != null)
-                            {
-                                if (tempnametable.TryGetValue(entry.name, out var nameId))
-                                    entry.nid = nameId;
-                                else
-                                {
-                                    tempnametable.Add(entry.name, counter);
-                                    entry.nid = counter++;
-                                }
-                                entry.name = null;
-                            }
-                        }
-
-
-                        var offline = new OfflineData.OfflineDataV2();
-                        offline.olc = cell6;
-                        offline.version = 2;
-                        offline.dateGenerated = DateTime.UtcNow.ToUnixTime();
-                        offline.entries = new Dictionary<string, List<OfflineData.OfflinePlaceEntry>>();
-                        offline.entries.Add(styleSet, entries);
-                        offline.nameTable = tempnametable.ToDictionary(k => k.Value, v => v.Key);
-                        finalMadeEntries.Add(new Tuple<string, OfflineData.OfflineDataV2>(cell6.Substring(0,4), offline));
-                    });
-                    //now take finalMadeEntries, and for each of those work out merging/writing to existing files.
-                    var cell4s = finalMadeEntries.GroupBy(t => t.Item1);
-                    //foreach(var cell4 in cell4s)
-                    Parallel.ForEach(cell4s, (cell4) =>
-                    {
-                        //Now we know which files to look up.
-                        var zip = ZipFile.Open(outputDirBase + cell4.Key + ".zip", ZipArchiveMode.Update);
-                        foreach (var cell6 in cell4)
-                        {
-                            Stream estream;
-                            var data = cell6.Item2;
-                            var entry = zip.GetEntry(cell6.Item2.olc + ".json");
-                            if (entry == null)
-                            {
-                                //write it!
-                                entry = zip.CreateEntry(cell6.Item2.olc + ".json", CompressionLevel.Optimal);
-                                estream = entry.Open();
-                            }
-                            else
-                            {
-                                //load existing entry, merge them, write that as final data.
-                                estream = entry.Open();
-                                var existingThing = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(estream, jso);
-
-                                data = OfflineData.MergeOfflineFiles(existingThing, data);
-                                estream.Position = 0;
-                                estream.SetLength(0);
-                            }
-
-                            foreach (var style in data.entries)
-                            {
-                                data.entries[style.Key] = data.entries[style.Key].OrderBy(e => e.lo).ThenByDescending(e => e.s).ToList();
-                                //We do need to keep these, in case we merge them again.
-                                //foreach (var e in data.entries[style.Key])
-                                //{
-                                    //Dont save this to the output file.
-                                    //e.s = null;
-                                    //e.lo = null;
-                                //}
-                            }
-
-                            using (var streamWriter = new StreamWriter(estream))
-                                streamWriter.Write(JsonSerializer.Serialize(data, jso));
-                            estream.Close(); estream.Dispose();
-                        }
-                        zip.Dispose();
-                    });
-                    
-                    SaveCurrentBlockAndGroup(block, groupId);
-                    sw1.Stop();
-                    Log.WriteLog("Block " + block + " Group " + groupId + " parsed to files in: " + sw1.Elapsed);
-
-                    if (itemType == 3)
-                        timeListRelations.Add(sw1.Elapsed);
-                    else if (itemType == 2)
-                        timeListWays.Add(sw1.Elapsed);
-                    else
-                    {
-                        timeListNodes.Add(sw1.Elapsed);
-                    }
-                }
-                nextBlockId++;
-            }
-            swTotal.Stop();
-            Log.WriteLog("Process completed at " + DateTime.Now + ", took " + swTotal.Elapsed);
         }
 
         //future todo, may not make it into the next release yet.

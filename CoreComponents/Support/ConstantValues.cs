@@ -1,4 +1,9 @@
-﻿namespace PraxisCore
+﻿using Google.OpenLocationCode;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace PraxisCore
 {
     public static class ConstantValues
     {
@@ -57,5 +62,37 @@
 
         public const double metersPerDegree = 111111;
         public const double oneMeterLat = 1 / metersPerDegree;
+
+        static List<string> _cellCombos = null;
+        public static List<string> GetCellCombos()
+        {
+            if (_cellCombos != null)
+                return _cellCombos;
+            
+            _cellCombos = new List<string>(400);
+            foreach (var Yletter in OpenLocationCode.CodeAlphabet)
+                foreach (var Xletter in OpenLocationCode.CodeAlphabet)
+                {
+                    _cellCombos.Add(System.String.Concat(Yletter, Xletter));
+                }
+
+            return _cellCombos;
+        }
+
+        static List<string> _cell2Combos = null;
+        public static List<string> GetCell2Combos()
+        {
+            if (_cell2Combos != null)
+                return _cell2Combos;
+
+            _cell2Combos = new List<string>(400);
+            foreach (var Yletter in OpenLocationCode.CodeAlphabet.Take(9))
+                foreach (var Xletter in OpenLocationCode.CodeAlphabet.Take(18))
+                {
+                    _cell2Combos.Add(String.Concat(Yletter, Xletter));
+                }
+
+            return _cell2Combos;
+        }
     }
 }

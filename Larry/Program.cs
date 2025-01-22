@@ -7,7 +7,6 @@ using PraxisCore;
 using PraxisCore.PbfReader;
 using PraxisCore.Support;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -15,14 +14,9 @@ using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System.Xml;
-using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 using static PraxisCore.Singletons;
-
-
 
 namespace Larry
 {
@@ -31,10 +25,10 @@ namespace Larry
         static IConfigurationRoot config;
         static List<DbTables.Place> memorySource;
         static IMapTiles MapTiles;
-        static bool singleThread = false;
 
         static void Main(string[] args)
         {
+            SetEnvValues();
             var builder = new ConfigurationBuilder()
             .AddJsonFile("Larry.config.json");
             config = builder.Build();
@@ -61,18 +55,6 @@ namespace Larry
                 Log.WriteLog("Using connection for " + dbName);
             }
 
-            //if (args.Any(a => a.StartsWith("-getPbf:")))
-            //{
-            //    //Wants 3 pieces. Drops in placeholders if some are missing. Giving no parameters downloads Ohio.
-            //    string arg = args.First(a => a.StartsWith("-getPbf:")).Replace("-getPbf:", "");
-            //    var splitData = arg.Split('|'); //remember the first one will be empty.
-            //    string level1 = splitData.Count() >= 4 ? splitData[3] : "north-america";
-            //    string level2 = splitData.Count() >= 3 ? splitData[2] : "us";
-            //    string level3 = splitData.Count() >= 2 ? splitData[1] : "ohio";
-
-            //    DownloadPbfFile(level1, level2, level3, config["PbfFolder"]);
-            //}
-
             if (args.Any(a => a == "-openCellId"))
             {
                 ConvertOpenCellIdToPMD();
@@ -91,9 +73,6 @@ namespace Larry
             if (!args.Any(a => a == "-makeServerDb")) //This will not be available until after creating the DB slightly later.
                 TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles); //This last bit of config must be done after DB creation check
 
-            //ConsolidatePmdFiles();
-
-
             if (args.Any(a => a == "-loadData"))
             {
                 LoadEverything();
@@ -105,7 +84,6 @@ namespace Larry
             {
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
-                SetEnvValues();
                 SetDefaultPasswords();
                 var db = new PraxisContext();
                 TagParser.Initialize(true, null);
@@ -123,36 +101,6 @@ namespace Larry
 
             TagParser.Initialize(config["ForceStyleDefaults"] == "True", MapTiles);            
 
-            //Takes a styleSet, and saves 1 output file per style in that set. 
-            if (args.Any(a => a.StartsWith("-splitPbfByStyle:")))
-            {
-                var style = args.First(a => a.StartsWith("-splitPbfByStyle:")).Split(':')[1];
-                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
-                foreach (string filename in filenames)
-                {
-                    Log.WriteLog("Loading " + filename + " at " + DateTime.Now);
-                    PbfReader r = new PbfReader();
-                    r.outputPath = config["PbfFolder"];
-                    r.styleSet = style;
-                    r.processingMode = config["processingMode"]; // "normal" and "center" allowed
-                    r.saveToDB = false; //we want these as separate files for later.
-                    //r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
-                    //r.reprocessFile = config["reprocessFiles"] == "True";
-                    r.splitByStyleSet = true; //Implies saving to PMD files.
-
-                    if (config["ResourceUse"] == "low")
-                    {
-                        r.lowResourceMode = true;
-                    }
-                    else if (config["ResourceUse"] == "high")
-                    {
-                        r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
-                    }
-                    r.ProcessFile(filename, long.Parse(config["UseOneRelationID"]));
-                    File.Move(filename, filename + "done");
-                }
-            }
-
             if (args.Any(a => a.StartsWith("-convertPbfs")))
             {
                 ConvertPBFtoPMD();
@@ -162,36 +110,6 @@ namespace Larry
             {
                 var vals = args.First(a => a.StartsWith("-addOneElement:")).Split(':');
                 LoadOneEntryFromFile(vals[1].ToLong());
-            }
-
-            if (args.Any(a => a.StartsWith("-createStandaloneRelation")))
-            {
-                //This makes a standalone DB for a specific relation passed in as a paramter. 
-                int relationId = Int32.Parse(config["UseOneRelationID"]);
-                StandaloneCreation.CreateStandaloneDB(relationId, null, false, true); //How map tiles are handled is determined by the optional parameters
-            }
-
-            if (args.Any(a => a.StartsWith("-createStandaloneBox")))
-            {
-                //This makes a standalone DB for a specific area passed in as a paramter.
-                //If you want to cover a region in a less-specific way, or the best available relation is much larger than you thought, this might be better.
-                string[] bounds = args.First(a => a.StartsWith("-createStandaloneBox")).Split('|');
-                GeoArea boundsArea = new GeoArea(bounds[1].ToDouble(), bounds[2].ToDouble(), bounds[3].ToDouble(), bounds[4].ToDouble());
-
-                //in order, these go south/west/north/east.
-                StandaloneCreation.CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
-            }
-
-            if (args.Any(a => a.StartsWith("-createStandalonePoint")))
-            {
-                //This makes a standalone DB centered on a specific point, it will grab a Cell6's area around that point.
-                string[] bounds = args.First(a => a.StartsWith("-createStandalonePoint")).Split('|');
-
-                var resSplit = resolutionCell6 / 2;
-                GeoArea boundsArea = new GeoArea(bounds[1].ToDouble() - resSplit, bounds[2].ToDouble() - resSplit, bounds[1].ToDouble() + resSplit, bounds[2].ToDouble() + resSplit);
-
-                //in order, these go south/west/north/east.
-                StandaloneCreation.CreateStandaloneDB(0, boundsArea, false, true); //How map tiles are handled is determined by the optional parameters
             }
 
             if (args.Any(a => a == "-autoCreateMapTiles"))
@@ -240,11 +158,6 @@ namespace Larry
                 PwdSpeedTest();
             }
 
-            if (args.Any(a => a == "-setEnvValues"))
-            {
-                SetEnvValues();
-            }
-
             if (args.Any(a => a == "-makeOfflineFiles"))
             {
                 var sw = Stopwatch.StartNew();
@@ -255,12 +168,6 @@ namespace Larry
                 OfflineData.yRes = config["offlineYPixelResolution"].ToDouble();
                 OfflineData.styles = config["offlineStyleSets"].Split(",");
                 OfflineData.filePath = config["PbfFolder"];
-
-                //Call this so we sort-of hint to MariaDB to use the right indexes later
-                //var db = new PraxisContext();
-                //var bounds = db.ServerSettings.FirstOrDefault();
-                //var randomPlace = PraxisCore.Place.RandomPoint(bounds);
-                //GetPlaces(randomPlace.Substring(0, 4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
 
                 OfflineData.MakeOfflineJsonFromOfflineTable(""); //Larry should prefer this, since thats its purpose.
                 File.Delete("lastOfflineEntry.txt");
@@ -274,12 +181,6 @@ namespace Larry
                     File.WriteAllText("lastOfflineEntry.txt", "");
                 OfflineData.filePath = config["PbfFolder"];
                 OfflineData.styles = ["suggestedmini"]; //Fixed for minimized mode, along with most other variables.
-
-                //Call this so we sort-of hint to MariaDB to use the right indexes later
-                //var db = new PraxisContext();
-                //var bounds = db.ServerSettings.FirstOrDefault();
-                //var randomPlace = PraxisCore.Place.RandomPoint(bounds);
-                //GetPlaces(randomPlace.Substring(0, 4).ToGeoArea(), skipTags: true, dataKey: OfflineData.styles[0]);
 
                 OfflineData.MakeMinimizedOfflineData("");
                 File.Delete("lastOfflineEntry.txt");
@@ -361,12 +262,11 @@ namespace Larry
         {
             try
             {
-                Log.WriteLog("Setting preferred NET environment variables for performance. A restart may be required for them to apply.");
                 System.Environment.SetEnvironmentVariable("DOTNET_CLI_TELEMETRY_OPTOUT", "1", EnvironmentVariableTarget.Machine);
             }
-            catch (Exception ex)
+            catch
             {
-                Log.WriteLog("Failed to update NET environment variables: " + ex.Message, Log.VerbosityLevels.Errors);
+                //Quietly continue on.
             }
         }
 
@@ -456,8 +356,6 @@ namespace Larry
                 File.Move(filename, filename + "done");
             }
         }
-
-
 
         /// <summary>
         /// This is intended for pulling a single missing entry into an existing database, and does not process to an external file.
@@ -563,9 +461,6 @@ namespace Larry
 
             if (config["KeepElementsInMemory"] == "True")
                 memorySource = new List<DbTables.Place>(20000);
-
-            if (config["ResourceUse"] == "low")
-                singleThread = true;
         }
 
         public static void ReadCoastlineWaterPolyShapefile(string shapePath)
@@ -625,161 +520,6 @@ namespace Larry
             {
                 File.Move(file, file.Substring(0, file.Length - 4));
             }
-        }
-
-        private static Dictionary<string, int> GetTerrainIndex(string style = "mapTiles")
-        {
-            var dict = new Dictionary<string, int>();
-            foreach (var entry in TagParser.allStyleGroups[style])
-            {
-                if (entry.Value.IsGameElement)
-                {
-                    dict.Add(entry.Key, dict.Count + 1);
-                }
-            }
-            return dict;
-        }
-
-        static List<string> GetCellCombos()
-        {
-            var list = new List<string>(400);
-            foreach (var Yletter in OpenLocationCode.CodeAlphabet)
-                foreach (var Xletter in OpenLocationCode.CodeAlphabet)
-                {
-                    list.Add(System.String.Concat(Yletter, Xletter));
-                }
-
-            return list;
-        }
-
-        static List<string> GetCell2Combos()
-        {
-            var list = new List<string>(400);
-            foreach (var Yletter in OpenLocationCode.CodeAlphabet.Take(9))
-                foreach (var Xletter in OpenLocationCode.CodeAlphabet.Take(18))
-                {
-                    list.Add(String.Concat(Yletter, Xletter));
-                }
-
-            return list;
-        }
-
-        public static void MakeOfflineFilesCell8()
-        {
-            using var db = new PraxisContext();
-            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-            var terrainDict = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>>();
-            var index = GetTerrainIndex();
-            //To avoid creating a new type, I add the index data as its own entry, and put all the data in the first key under "index".
-            terrainDict["index"] = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>();
-            terrainDict["index"][String.Join("|", index.Select(i => i.Key + "," + i.Value))] = new ConcurrentDictionary<string, ConcurrentDictionary<string, string>>();
-
-            foreach (var cell2 in GetCell2Combos())
-            {
-                var place2 = cell2.ToPolygon();
-                var placeTest = db.Places.Any(p => p.ElementGeometry.Intersects(place2)); //DoPlacesExist in a single line.
-                if (!placeTest)
-                    continue;
-
-                terrainDict[cell2] = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<string, string>>>();
-                foreach (var cell4 in GetCellCombos())
-                {
-                    var place4 = (cell2 + cell4).ToPolygon();
-                    var placeTest4 = db.Places.Any(p => p.ElementGeometry.Intersects(place4)); //DoPlacesExist in a single line.
-                    if (!placeTest4)
-                        continue;
-
-                    terrainDict[cell2][cell4] = new ConcurrentDictionary<string, ConcurrentDictionary<string, string>>();
-                    foreach (var cell6 in GetCellCombos())
-                    {
-                        try
-                        {
-                            string pluscode6 = cell2 + cell4 + cell6;
-                            GeoArea box6 = pluscode6.ToGeoArea();
-                            var quickplaces = PraxisCore.Place.GetPlaces(box6);
-                            if (quickplaces.Count == 0)
-                                continue;
-
-                            terrainDict[cell2][cell4][cell6] = new ConcurrentDictionary<string, string>();
-
-                            //foreach (var place in quickplaces)
-                            //if (place.ElementGeometry.Coordinates.Count() > 1000)
-                            //place.ElementGeometry = place.ElementGeometry.Intersection(box6.ToPolygon());
-
-
-                            Parallel.ForEach(GetCellCombos(), (cell8) =>
-                            {
-                                string pluscode = pluscode6 + cell8;
-                                GeoArea box = pluscode.ToGeoArea();
-                                var places = PraxisCore.Place.GetPlaces(box, quickplaces);
-                                if (places.Count == 0)
-                                    return;
-
-                                places = places.Where(p => p.IsGameElement).ToList();
-                                if (places.Count == 0)
-                                    return;
-                                //var terrainInfo = AreaTypeInfo.SearchArea(ref box, ref places);
-                                var terrainsPresent = places.Select(p => p.StyleName).Distinct().ToList();
-                                //r terrainsPresent = terrainInfo.Select(t => t.data.areaType).Distinct().ToList();
-
-                                if (terrainsPresent.Count > 0)
-                                {
-                                    string concatTerrain = String.Join("|", terrainsPresent.Select(t => index[t])); //indexed ID of each type.
-                                    terrainDict[cell2][cell4][cell6][cell8] = concatTerrain;
-                                }
-                            });
-                            if (terrainDict[cell2][cell4][cell6].IsEmpty)
-                                terrainDict[cell2][cell4].TryRemove(cell6, out _);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.WriteLog("error making file for " + cell2 + cell4 + cell6 + ":" + ex.Message);
-                        }
-                    }
-                    if (terrainDict[cell2][cell4].IsEmpty)
-                        terrainDict[cell2].TryRemove(cell4, out _);
-                    //else
-                    //{
-                    //    File.WriteAllText(config["PbfFolder"] + cell2 + cell4 + ".json", JsonSerializer.Serialize(terrainDict));
-                    //    terrainDict[cell2].TryRemove(cell4, out var xx);
-                    //    Log.WriteLog("Made file for " + cell2 + cell4 + " at " + DateTime.Now);
-                    //}
-                }
-                if (terrainDict[cell2].IsEmpty)
-                    terrainDict[cell2].TryRemove(cell2, out _);
-                else
-                {
-                    File.WriteAllText(config["PbfFolder"] + cell2 + ".json", JsonSerializer.Serialize(terrainDict));
-                    terrainDict.TryRemove(cell2, out _);
-                    Log.WriteLog("Made file for " + cell2 + " at " + DateTime.Now);
-                }
-            }
-
-            //return JsonSerializer.Serialize(terrainDict);
-        }
-
-        public static bool IsTerrainPresent(string styleSet, string terrain, string cell)
-        {
-            //This will be a DB query based on a style that doesn't have a NOT criteria.
-            using var db = new PraxisContext();
-            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
-
-            var style = TagParser.allStyleGroups[styleSet][terrain].StyleMatchRules;
-            var firstSTyle = style.First();
-
-            var queryTag = firstSTyle.Key;
-            var queryVals = firstSTyle.Value.Split('|');
-            var queryType = firstSTyle.MatchType;
-
-            var area = cell.ToPolygon();
-            var results = db.PlaceTags.Include(p => p.Place).Any(p => p.Key == queryTag && queryVals.Contains(p.Value));
-            //this could be done on a list of places
-
-
-
-            return false;
         }
 
         public static void SetDefaultPasswords()
@@ -940,16 +680,11 @@ namespace Larry
 
 
                 var newSkip = allPlaces.Max(p => p.Id);
-                //var tagMin = allPlaces.Min(p => p.SourceItemID);
-                //var tagMax = allPlaces.Max(p => p.SourceItemID);
-                //var allTags = db.PlaceTags.Where(t => t.SourceItemId >= tagMin && t.SourceItemId <= tagMax).ToList();
-
                 skip = newSkip;
 
                 foreach (var p in allPlaces)
                 //Parallel.ForEach(allPlaces, (p) =>
                 {
-                    //p.Tags = allTags.Where(t => t.SourceItemType == p.SourceItemType && t.SourceItemId == p.SourceItemID).ToList();
                     PraxisCore.Place.PreTag(p);
                     db.PlaceData.UpdateRange(p.PlaceData); //This is necessary, and blocks parallel operations because its on the EF context.
                 } //); 
@@ -1010,76 +745,6 @@ namespace Larry
             }
 
             db.SaveChanges();
-        }
-
-
-
-        public static void SplitDbIntoCell2()
-        {
-            //A way to created merged data from separate database.
-            //This should load all elements in each Cell2 area, and export those to a PMD file in a sub-folder.
-            //Do that manually to all databases with the same export folder, and then each folder can be merged together to create a combined area. Mostly useful for
-            //areas where multiple continents cross inside a single cell.
-
-            foreach (var cell2 in GetCell2Combos()) //Custom function because this is a 9x18 grid.
-            {
-                var area = cell2.ToGeoArea();
-                var db = new PraxisContext();
-                var places = PraxisCore.Place.GetPlaces(area);
-
-                //ConvertPBFtoPMD();
-
-
-            }
-        }
-
-        public static void ConsolidatePmdFiles()
-        {
-            //Take a folder of pmd files, and merge them all into a smaller number of bigger files.
-            //NOTE: may not want this to be 1 total file, because on some scales that will be multiple gigabytes.
-
-            var files = Directory.EnumerateFiles(config["PbfFolder"], "*.pmd").Where(f => !Path.GetFileName(f).StartsWith("consolidated")).ToList();
-            var completed = Directory.EnumerateFiles(config["PbfFolder"], "consolidated-*.pmd").ToList();
-
-            var currentCounter = completed.Count + 1;
-
-            var filename = "consolidated-";
-            var currentPmd = new PlaceExport(config["PbfFolder"] + filename + currentCounter.ToString() + ".pmd");
-            Stopwatch sw = Stopwatch.StartNew();
-            List<string> filesToRemove = new List<string>();
-            foreach (var file in files)
-            {
-                //check if we need a new output file.
-                if (currentPmd.totalEntries > 6000)
-                {
-                    currentPmd.Close();
-                    currentCounter++;
-                    currentPmd = new PlaceExport(config["PbfFolder"] + filename + currentCounter.ToString() + ".pmd");
-                    foreach (var delete in filesToRemove)
-                        File.Delete(delete);
-
-                    Log.WriteLog(filesToRemove.Count + " files consolidated into 1 in " + sw.Elapsed);
-                    sw.Restart();
-                    filesToRemove.Clear();
-                }
-
-                var thisFile = new PlaceExport(file);
-                if (thisFile.totalEntries > 6000)
-                {
-                    thisFile.Close();
-                    continue;
-                }
-                thisFile.styleSet = "importAll";
-                var entry = thisFile.GetNextPlace();
-                while (entry != null)
-                {
-                    currentPmd.AddEntry(entry);
-                    entry = thisFile.GetNextPlace();
-                }
-
-                filesToRemove.Add(file);
-                thisFile.Close();
-            }
         }
 
         public static void PruneFolders(string basepath)

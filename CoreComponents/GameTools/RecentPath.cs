@@ -1,11 +1,11 @@
 ﻿using Google.OpenLocationCode;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace PraxisCore.GameTools {
+namespace PraxisCore.GameTools
+{
 
     /// <summary>
     /// A class used to save Point locations to JSON format inside other classes.

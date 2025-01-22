@@ -17,12 +17,10 @@ using System.Threading.Tasks;
 
 namespace PraxisCore
 {
-
     //TODO: offline data improvements to consider:
     // Styles include the name of each entry, which makes editing offline entries easier.
     // Do offline items get the privacyID, so that a client downloading new data can apply existing changes to new data correctly?
     // (That Id is the OSM ID plus type. That's the proper unique connection, and its offline so it won't expose data to other players)
-    //TODO: I will need to be able to pull from either the Places or OfflinePlaces tables, depending.
     // Odds are high that Larry will use the OfflinePlaces table, as its the bulk processor app, and PraxisMapper will use Places as normal.
     public class OfflineData
     {
@@ -124,7 +122,7 @@ namespace PraxisCore
 
                     //This block isnt limited by IO, and will suffer from swapping threads constantly.
                     ParallelOptions po = new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount };
-                    Parallel.ForEach(GetCellCombos(), po, pair =>
+                    Parallel.ForEach(ConstantValues.GetCellCombos(), po, pair =>
                     {
                         MakeOfflineJson(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
@@ -147,7 +145,7 @@ namespace PraxisCore
                     if (doneCell2s.Contains(plusCode) && plusCode != "")
                         return;
 
-                    foreach (var pair in GetCellCombos())
+                    foreach (var pair in ConstantValues.GetCellCombos())
                         MakeOfflineJson(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     File.AppendAllText("lastOfflineEntry.txt", "|" + plusCode);
                     return;
@@ -245,8 +243,6 @@ namespace PraxisCore
                     {
                         try
                         {
-
-
                             inner_zip = ZipFile.Open(file, ZipArchiveMode.Update);
                         }
                         catch (Exception ex)
@@ -280,7 +276,7 @@ namespace PraxisCore
 
                     //This block isnt limited by IO, and will suffer from swapping threads constantly.
                     ParallelOptions po = new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount };
-                    Parallel.ForEach(GetCellCombos(), po, pair =>
+                    Parallel.ForEach(ConstantValues.GetCellCombos(), po, pair =>
                     {
                         MakeOfflineJsonFromOfflineTable(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
@@ -303,7 +299,7 @@ namespace PraxisCore
                     if (doneCell2s.Contains(plusCode) && plusCode != "")
                         return;
 
-                    foreach (var pair in GetCellCombos())
+                    foreach (var pair in ConstantValues.GetCellCombos())
                         MakeOfflineJsonFromOfflineTable(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     File.AppendAllText("lastOfflineEntry.txt", "|" + plusCode);
                     return;
@@ -373,13 +369,8 @@ namespace PraxisCore
             var counter = 1;
             try
             {
-                //using var db = new PraxisContext();
-                //db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-                //db.ChangeTracker.AutoDetectChangesEnabled = false;
-
                 var cell = plusCode.ToGeoArea();
                 var area = plusCode.ToPolygon();
-
                 var styles = stylesToUse.Split(",");
 
                 //Adding variables here so that an instance can process these at higher or lower accuracy if desired. Higher accuracy or not simplifying items
@@ -497,11 +488,7 @@ namespace PraxisCore
                 Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
                 var nameIdCounter = 0;
 
-                //var finalData = new OfflineDataV2();
-                //finalData.olc = plusCode;
-                //finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
-                //foreach (var style in styles)
-                //{
+                
                 //if this style doesn't match this place, skip this
                 var styleData = TagParser.GetStyleEntry(place.tags, style);
                 if (styleData.Name == TagParser.defaultStyle.Name)
@@ -509,15 +496,7 @@ namespace PraxisCore
                     return null;
                 }
                 List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>();
-                //Names need handled outside of this function.
-                //var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
-                //foreach (var name in names)
-                //nametable.Add(name, ++nameIdCounter);
-
-                //foreach (var place in placeData)
-                //Parallel.ForEach(placeData, (place) => //we save data and re-order stuff after.
-                //{
-                //TODO: handle names NOW, and add it back into the results below.
+                
                 var name = TagParser.GetName(place.tags);
                 var geo = GeometrySupport.ConvertFundamentalOsmToOfflineV2Entry(place, plusCode, style);
                 if (geo == null)
@@ -530,30 +509,10 @@ namespace PraxisCore
                         nameID = nameval;
                 }
 
-
-                //});
-                //TODO: determine why one south america place was null.
-                //Smaller number layers get drawn first, and bigger places get drawn first.
-                //finalData.entries[style] = entries.Where(e => e != null).OrderBy(e => e.lo).ThenByDescending(e => e.s).ToList();
                 foreach (var e in geo)
-                {
-                    //Add name ID
                     e.nid = nameID;
-                    //but remove the sort size.
-                    //e.s = null;
-                    //e.lo = null;
-                }
-                //}
 
                 return geo;
-
-                //if (finalData.entries.Count == 0)
-                //return null;
-
-                //finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
-
-                //finalData.dateGenerated = DateTime.UtcNow.ToUnixTime();
-                //return finalData;
             }
             catch (Exception ex)
             {
@@ -568,10 +527,6 @@ namespace PraxisCore
             var counter = 1;
             try
             {
-                //using var db = new PraxisContext();
-                //db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-                //db.ChangeTracker.AutoDetectChangesEnabled = false;
-
                 var cell = plusCode.ToGeoArea();
                 var area = plusCode.ToPolygon();
 
@@ -672,7 +627,6 @@ namespace PraxisCore
             }
         }
 
-
         public static List<string> GetCoordEntries(Geometry geo, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
         {
             List<string> points = new List<string>(geo.Coordinates.Length);
@@ -746,30 +700,6 @@ namespace PraxisCore
             return results.Distinct().ToList(); //In the unlikely case splitting ends up processing the same part twice
         }
 
-        public static List<string> GetCellCombos()
-        {
-            var list = new List<string>(400);
-            foreach (var Yletter in OpenLocationCode.CodeAlphabet)
-                foreach (var Xletter in OpenLocationCode.CodeAlphabet)
-                {
-                    list.Add(String.Concat(Yletter, Xletter));
-                }
-
-            return list;
-        }
-
-        public static List<string> GetCell2Combos()
-        {
-            var list = new List<string>(400);
-            foreach (var Yletter in OpenLocationCode.CodeAlphabet.Take(9))
-                foreach (var Xletter in OpenLocationCode.CodeAlphabet.Take(18))
-                {
-                    list.Add(String.Concat(Yletter, Xletter));
-                }
-
-            return list;
-        }
-
         static readonly JsonSerializerOptions jso = new JsonSerializerOptions() { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
         public static void MakeMinimizedOfflineData(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.OfflinePlace> places = null)
         {
@@ -790,7 +720,7 @@ namespace PraxisCore
             //Called with an empty string, to mean 'run for all Cell2s'
             if (plusCode == "")
             {
-                foreach (var pair in GetCell2Combos())
+                foreach (var pair in ConstantValues.GetCell2Combos())
                     MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
                 return;
             }
@@ -829,7 +759,7 @@ namespace PraxisCore
 
                     //This block isnt limited by IO, and will suffer from swapping threads constantly.
                     ParallelOptions po = new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount };
-                    Parallel.ForEach(GetCellCombos(), po, pair =>
+                    Parallel.ForEach(ConstantValues.GetCellCombos(), po, pair =>
                     {
                         MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
@@ -854,7 +784,7 @@ namespace PraxisCore
 
                     var folder = string.Concat(filePath, plusCode.AsSpan(0, 2));
                     Directory.CreateDirectory(folder);
-                    foreach (var pair in GetCellCombos())
+                    foreach (var pair in ConstantValues.GetCellCombos())
                         MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile);
 
                     File.AppendAllText("lastOfflineEntry.txt", "|" + plusCode);
@@ -888,15 +818,12 @@ namespace PraxisCore
                         entryStream = entry.Open();
                     }
 
-
                     using (var streamWriter = new StreamWriter(entryStream))
                         streamWriter.Write(data);
                     entryStream.Close();
                     entryStream.Dispose();
                 }
             }
-
-
             else
             {
                 GenericData.SetAreaData(plusCode, "offlineV2", data);
@@ -934,9 +861,7 @@ namespace PraxisCore
             finalData.entries = new Dictionary<string, List<MinOfflineData>>();
             foreach (var style in styles)
             {
-                //Console.WriteLine(plusCode + ":getting places with " + style);
                 var placeData = PraxisCore.Place.GetOfflinePlaces(cell, source: places);
-                //Console.WriteLine(plusCode + ":places got - " + placeData.Count);
 
                 if (placeData.Count == 0)
                     continue;
@@ -1093,14 +1018,11 @@ namespace PraxisCore
             //Step 2: merge sets of entries
             foreach (var entryList in adding.entries)
             {
-                //if (!existing.entries.ContainsKey(entryList.Key))
                 if (!existing.entries.TryGetValue(entryList.Key, out var entry))
                     existing.entries.Add(entryList.Key, entryList.Value);
-                //else if (existing.entries[entryList.Key] != null)
                 else if (entry != null)
                 {
                     //merge entries
-                    //var list1 = entry; //existing.entries[entryList.Key];
                     var list2 = entryList.Value;
                     list2 = list2.Select(e => new MinOfflineData() { c = e.c, r = e.r, tid = e.tid, nid = e.nid.HasValue ? newNameMap[e.nid.Value] : null }).ToList();
                     //Remove duplicates
@@ -1109,7 +1031,6 @@ namespace PraxisCore
                         list2.Remove(r);
 
                     entry.AddRange(list2);
-                    //existing.entries[entryList.Key].AddRange(list2);
                 }
             }
 
@@ -1175,12 +1096,6 @@ namespace PraxisCore
                         if (e.nid > 0)
                             e.nid = newNameMap[e.nid.Value];
                     }
-                    //list2 = list2.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid > 0 ?  : null, OsmId = e.OsmId }).ToList();
-                    //Remove duplicates
-                    //var remove = list2.Where(l2 => entry.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)).ToList();
-                    //foreach (var r in remove)
-                        //list2.Remove(r)
-                   //or would it be faster to Distinct() when done?
                     entry.AddRange(list2.Where(l2 => !entry.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)));
                 }
             }
@@ -1190,45 +1105,5 @@ namespace PraxisCore
 
             return bigger;
         }
-
-        //TODO: if this takes in FundamentalOsm, is that more efficient?
-        //public static OfflinePlaceEntry CreateOfflineItemFromOfflinePlace(OfflinePlace place, Polygon area)
-        //{
-        //    var geo = place.ElementGeometry.Intersection(area);
-        //    if (simplifyRes > 0)
-        //        geo = geo.Simplify(simplifyRes);
-        //    if (geo.IsEmpty)
-        //        return null;
-
-        //    int nameID = 0;
-        //    if (place.Name != null)
-        //    {
-        //        nametable.TryGetValue(place.Name, out nameID);
-        //    }
-
-        //    var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
-
-        //    //I'm locking these geometry items to a tile, So I convert these points in the geometry to integers, effectively
-        //    //letting me draw Cell11 pixel-precise points from this info, and is shorter stringified for JSON vs floats/doubles.
-        //    var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
-        //    foreach (var coordSet in coordSets)
-        //    {
-        //        if (coordSet == "")
-        //            //if (coordSet.Count == 0)
-        //            continue;
-
-        //        var offline = new OfflinePlaceEntry();
-        //        offline.nid = nameID;
-        //        offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
-
-        //        offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
-        //        offline.p = coordSet;
-        //        offline.s = place.DrawSizeHint;
-        //        offline.lo = styleEntry.PaintOperations.Min(p => p.LayerId);
-        //        offline.OsmId = place.SourceItemID;
-
-        //        return offline;
-        //    }
-        //}
     }
 }

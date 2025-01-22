@@ -207,7 +207,7 @@ namespace PraxisCore
         /// <returns>a tuple of the 10-digit plus code and the name/areatype/client facing ID for the smallest element in that pluscode.</returns>
         public static AreaDetail? GetAreaDetailForCell10(double x, double y, ref List<DbTables.Place> places)
         {
-            //TODO: for very large areas, this is particularly slow. I may want to limit down places before callling this, or 
+            //for very large areas, this is particularly slow. I may want to limit down places before callling this, or 
             //use some kind of PreparedGeometry to save time?
             //singular function, only returns the smallest area in a cell.           
             var olc = new OpenLocationCode(y, x);

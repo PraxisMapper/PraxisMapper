@@ -1,9 +1,9 @@
 ﻿using NetTopologySuite.Geometries;
-using System;
 using System.Linq;
 using System.Text.Json.Serialization;
 
-namespace PraxisCore.GameTools {
+namespace PraxisCore.GameTools
+{
     /// <summary>
     /// GeometryTracker allows you to save arbitrary Geometry shapes to an accumulating Geometry object. This is useful for drawing a map of team-controlled territory, places visited,
     /// or other random shapes. If only tracking PlusCode cells, use CellTracker for dramatically better performance.

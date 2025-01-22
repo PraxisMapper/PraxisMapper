@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using NetTopologySuite.Geometries;
-using PraxisCore.Styles;
 using PraxisCore.Support;
 using System;
 using System.Collections.Concurrent;

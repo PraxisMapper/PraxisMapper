@@ -1,9 +1,8 @@
 ﻿using NetTopologySuite.Geometries;
-using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
-namespace PraxisCore.GameTools {
+namespace PraxisCore.GameTools
+{
     /// <summary>
     /// CellTracker allows you to save PlusCode Cell10 (or Cell11) values to be drawn to a geometry object later. This is useful for drawing a map of team-controlled territory, a player's complete
     /// location history, or other things not tied to specific Places on the map.

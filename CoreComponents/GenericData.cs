@@ -1,9 +1,6 @@
-﻿using BCrypt.Net;
-using Google.OpenLocationCode;
+﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.IdentityModel.Tokens;
-using NetTopologySuite.Mathematics;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -24,7 +21,6 @@ namespace PraxisCore
         static Aes baseSec = Aes.Create();
         public static bool enableCaching = false;
         public static IMemoryCache memoryCache = null;
-
 
         /// <summary>
         /// Saves a key/value pair to a given PlusCode. Will reject a pair containing a player's accountId in the database.

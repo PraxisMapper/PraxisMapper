@@ -24,15 +24,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-using System;
 using NetTopologySuite.Geometries;
-using OsmSharp.Complete;
 using OsmSharp.Tags;
+using PraxisCore.Support;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using OsmSharp;
 using static PraxisCore.Singletons;
-using PraxisCore.Support;
 
 namespace PraxisCore
 {
@@ -87,9 +85,6 @@ namespace PraxisCore
                 case 3:
                     if (!osmObject.tags.TryGetValue("type", out var typeValue))
                         return null;
-
-                    //TODO: I'll need to do this check elsewhere since I dont pass that along here.
-                    //var relation = (osmObject as CompleteRelation);
 
                     if (typeValue == "multipolygon" || typeValue == "linearring" || typeValue == "boundary") //Boundaries are about 7% of all relations.
                     { // this relation is a multipolygon or a boundary (that can be treated the same)

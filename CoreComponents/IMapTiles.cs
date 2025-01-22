@@ -1,5 +1,4 @@
-﻿using Google.OpenLocationCode;
-using PraxisCore.Support;
+﻿using PraxisCore.Support;
 using System.Collections.Generic;
 using static PraxisCore.DbTables;
 

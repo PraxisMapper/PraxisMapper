@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static PraxisCore.GameTools.MeterGrid;
 
 namespace PraxisCore.GameTools
 {

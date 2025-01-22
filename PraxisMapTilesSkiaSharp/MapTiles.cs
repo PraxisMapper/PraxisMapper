@@ -1,14 +1,14 @@
 ﻿using Google.OpenLocationCode;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
-using PraxisCore.Standalone;
 using PraxisCore.Support;
 using SkiaSharp;
 using static PraxisCore.ConstantValues;
 using static PraxisCore.DbTables;
 using static PraxisCore.Place;
 
-namespace PraxisCore {
+namespace PraxisCore
+{
     /// <summary>
     /// All functions related to generating or expiring map tiles. Both PlusCode sized tiles for gameplay or SlippyMap tiles for a webview.
     /// </summary>
@@ -83,52 +83,6 @@ namespace PraxisCore {
                 }
             }
             return paint;
-        }
-
-        /// <summary>
-        /// Draw square boxes around each area to approximate how they would behave in an offline app
-        /// </summary>
-        /// <param name="info">the image information for drawing</param>
-        /// <param name="items">the elements to draw.</param>
-        /// <returns>byte array of the generated .png tile image</returns>
-        public static byte[] DrawOfflineEstimatedAreas(ImageStats info, List<DbTables.Place> items) {
-            SKBitmap bitmap = new SKBitmap(info.imageSizeX, info.imageSizeY, SKColorType.Rgba8888, SKAlphaType.Premul);
-            SKCanvas canvas = new SKCanvas(bitmap);
-            var bgColor = SKColors.Transparent;
-            canvas.Clear(bgColor);
-            canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2);
-            SKPaint fillpaint = new SKPaint();
-            fillpaint.IsAntialias = true;
-            fillpaint.Style = SKPaintStyle.Fill;
-            var strokePaint = new SKPaint();
-            strokePaint.Color = SKColors.Black;
-            strokePaint.TextSize = 32;
-            strokePaint.StrokeWidth = 3;
-            strokePaint.Style = SKPaintStyle.Stroke;
-            strokePaint.TextAlign = SKTextAlign.Center;
-
-            var placeInfo = Standalone.Standalone.GetPlaceInfo(items.Where(i => i.IsGameElement).ToList());
-
-            //this is for rectangles.
-            foreach (var pi in placeInfo) {
-                var rect = PlaceInfoToRect(pi, info);
-                fillpaint.Color = SKColor.Parse(TagParser.PickStaticColorByName(pi.Name));
-                canvas.DrawRect(rect, fillpaint);
-                canvas.DrawRect(rect, strokePaint);
-            }
-
-            canvas.Scale(1, -1, info.imageSizeX / 2, info.imageSizeY / 2); //inverts the inverted image again!
-            foreach (var pi in placeInfo) {
-                var rect = PlaceInfoToRect(pi, info);
-                canvas.DrawText(pi.Name, rect.MidX, info.imageSizeY - rect.MidY, strokePaint);
-            }
-
-            var ms = new MemoryStream();
-            var skms = new SKManagedWStream(ms);
-            bitmap.Encode(skms, SKEncodedImageFormat.Png, 100);
-            var results = ms.ToArray();
-            skms.Dispose(); ms.Close(); ms.Dispose();
-            return results;
         }
 
         /// <summary>
@@ -565,51 +519,6 @@ namespace PraxisCore {
         public static SkiaSharp.SKPoint[] PolygonToSKPoints(Geometry place, GeoArea drawingArea, double degreesPerPixelX, double degreesPerPixelY) {
             SkiaSharp.SKPoint[] points = place.Coordinates.Select(o => new SkiaSharp.SKPoint((float)((o.X - drawingArea.WestLongitude) * (1 / degreesPerPixelX)), (float)((o.Y - drawingArea.SouthLatitude) * (1 / degreesPerPixelY)))).ToArray();
             return points;
-        }
-
-        public static SKPoint PlaceInfoToSKPoint(StandaloneDbTables.PlaceInfo2 pi, ImageStats imgstats) {
-            SKPoint point = new SKPoint();
-            point.X = (float)((pi.lonCenter - imgstats.area.WestLongitude) * (1 / imgstats.degreesPerPixelX));
-            point.Y = (float)((pi.latCenter - imgstats.area.SouthLatitude) * (1 / imgstats.degreesPerPixelY));
-            return point;
-        }
-
-        public static SKPoint[] PlaceInfoToSKPoints(StandaloneDbTables.PlaceInfo2 pi, ImageStats info) {
-            float heightMod = (float)pi.height / 2;
-            float widthMod = (float)pi.width / 2;
-            var points = new SkiaSharp.SKPoint[5];
-            points[0] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter + heightMod)); //upper right corner
-            points[1] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter - heightMod)); //lower right
-            points[2] = new SkiaSharp.SKPoint((float)(pi.lonCenter - widthMod), (float)(pi.latCenter - heightMod)); //lower left
-            points[3] = new SkiaSharp.SKPoint((float)(pi.lonCenter - widthMod), (float)(pi.latCenter + heightMod)); //upper left
-            points[4] = new SkiaSharp.SKPoint((float)(pi.lonCenter + widthMod), (float)(pi.latCenter + heightMod)); //upper right corner again for a closed shape.
-
-            //points is now a geometric area. Convert to image area
-            points = points.Select(p => new SkiaSharp.SKPoint((float)((p.X - info.area.WestLongitude) * (1 / info.degreesPerPixelX)), (float)((p.Y - info.area.SouthLatitude) * (1 / info.degreesPerPixelY)))).ToArray();
-
-            return points;
-        }
-
-        /// <summary>
-        /// Converts the offline-standalone PlaceInfo entries into SKRects for drawing on a SlippyMap. Used to visualize the offline mode beahvior of areas.
-        /// </summary>
-        /// <param name="pi">PlaceInfo object to convert</param>
-        /// <param name="info">ImageStats for the resulting map tile</param>
-        /// <returns>The SKRect representing the standaloneDb size of the PlaceInfo</returns>
-        public static SKRect PlaceInfoToRect(StandaloneDbTables.PlaceInfo2 pi, ImageStats info) {
-            SKRect r = new SKRect();
-            float heightMod = (float)pi.height / 2;
-            float widthMod = (float)pi.width / 2;
-            r.Left = (float)pi.lonCenter - widthMod;
-            r.Left = (float)(r.Left - info.area.WestLongitude) * (float)(1 / info.degreesPerPixelX);
-            r.Right = (float)pi.lonCenter + widthMod;
-            r.Right = (float)(r.Right - info.area.WestLongitude) * (float)(1 / info.degreesPerPixelX);
-            r.Top = (float)pi.latCenter + heightMod;
-            r.Top = (float)(r.Top - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
-            r.Bottom = (float)pi.latCenter - heightMod;
-            r.Bottom = (float)(r.Bottom - info.area.SouthLatitude) * (float)(1 / info.degreesPerPixelY);
-
-            return r;
         }
     }
 }
