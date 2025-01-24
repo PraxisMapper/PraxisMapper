@@ -89,7 +89,8 @@ namespace Larry
                 TagParser.Initialize(true, null);
                 createDb();
                 LoadEverything();
-                db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
+                if (config["processingMode"] != "offline")
+                    db.SetServerBounds(long.Parse(config["UseOneRelationID"]));
                 Log.WriteLog("Server setup complete in " + sw.Elapsed);
             }
 
