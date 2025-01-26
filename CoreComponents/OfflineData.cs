@@ -580,7 +580,6 @@ namespace PraxisCore
                         foreach (var coordSet in coordSets)
                         {
                             if (coordSet == "")
-                                //if (coordSet.Count == 0)
                                 continue;
 
                             var offline = new OfflinePlaceEntry();

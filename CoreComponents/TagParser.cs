@@ -8,7 +8,8 @@ using System.Collections.Generic;
 using System.Linq;
 using static PraxisCore.DbTables;
 
-namespace PraxisCore {
+namespace PraxisCore
+{
     //NOTE:
     //per https://lists.openstreetmap.org/pipermail/talk/2008-February/023419.html
     // Mapnik uses at least 5 layers internally for its tiles. (roughly, in top to bottom order)
@@ -435,8 +436,9 @@ namespace PraxisCore {
                 return "";
             var retVal = geo.Tags.GetValue("name");
             if (retVal == null)
-                retVal = "";
-
+                retVal = geo.Tags.GetValue("name:en");
+            if (retVal == null)
+                retVal = geo.Tags.FirstOrDefault(t => t.Key.StartsWith("name:")).Value;
             return retVal;
         }
 
@@ -444,11 +446,12 @@ namespace PraxisCore {
         {
             if (geo.tags.Count == 0)
                 return "";
-            var retVal = geo.tags.GetValue("name");
-            if (retVal == null)
-                retVal = "";
+            if (geo.tags.ContainsKey("name"))
+                return geo.tags["name"];
+            if (geo.tags.ContainsKey("name:en"))
+                return geo.tags["name:en"];
 
-            return retVal;
+            return geo.tags.FirstOrDefault(t => t.Key.StartsWith("name:")).Value;
         }
 
         /// <summary>
@@ -494,16 +497,6 @@ namespace PraxisCore {
         }
 
         /// <summary>
-        /// Returns the name of a Place by searching its tags.
-        /// </summary>
-        /// <param name="place"></param>
-        /// <returns></returns>
-        public static string PickName(DbTables.Place place)
-        {
-            return GetName(place.Tags);
-        }
-
-        /// <summary>
         /// Given a Place, searches both PlaceTags and PlaceData for an entry with a matching key and returns that value, or an empty string if not found.
         /// </summary>
         /// <param name="place"></param>
@@ -544,21 +537,6 @@ namespace PraxisCore {
 
             value = "";
             return false;
-        }
-
-        /// <summary>
-        /// Get a link to a Place's wikipedia page, if tagged with a wiki tag.
-        /// </summary>
-        /// <param name="element">the Place with tags to check</param>
-        /// <returns>a link to the relevant Wikipedia page for an element, or an empty string if the element has no such tag.</returns>
-        public static string GetWikipediaLink(DbTables.Place element)
-        {
-            var wikiTag = element.Tags.FirstOrDefault(t => t.Key == "wikipedia");
-            if (wikiTag == null)
-                return "";
-
-            string[] splitValue = wikiTag.Value.Split(":");
-            return "https://" + splitValue[0] + ".wikipedia.org/wiki/" + splitValue[1]; //TODO: check if special characters need replaced or encoded on this.
         }
 
         /// <summary>

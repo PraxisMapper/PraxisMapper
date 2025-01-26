@@ -287,6 +287,7 @@ namespace PraxisCore
                 }
 
                 var place = new DbTables.OfflinePlace();
+                place.Name = TagParser.GetName(g);
                 place.SourceItemID = g.entryId;
                 place.SourceItemType = g.entryType;
                 geometry = SimplifyPlace(geometry);
