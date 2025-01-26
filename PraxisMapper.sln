@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Larry", "Larry\Larry.csproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisCore", "CoreComponents\PraxisCore.csproj", "{377129DA-BDC9-4814-99F5-9A711BBC435D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestPerformanceApp", "TestPerformanceApp\TestPerformanceApp.csproj", "{377EE600-439D-4515-8A13-A399D53B752C}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisMapTilesSkiaSharp", "PraxisMapTilesSkiaSharp\PraxisMapTilesSkiaSharp.csproj", "{8DB76E57-5A6B-48C4-B866-D93D0CA9B6C2}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PraxisMapTilesImageSharp", "PraxisCoreMapTilesImageSharp\PraxisMapTilesImageSharp.csproj", "{46F74A96-71F8-414B-A4E0-552A09D8C158}"
@@ -47,10 +45,6 @@ Global
 		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{377129DA-BDC9-4814-99F5-9A711BBC435D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{377EE600-439D-4515-8A13-A399D53B752C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{377EE600-439D-4515-8A13-A399D53B752C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{377EE600-439D-4515-8A13-A399D53B752C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{377EE600-439D-4515-8A13-A399D53B752C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{8DB76E57-5A6B-48C4-B866-D93D0CA9B6C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8DB76E57-5A6B-48C4-B866-D93D0CA9B6C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8DB76E57-5A6B-48C4-B866-D93D0CA9B6C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
