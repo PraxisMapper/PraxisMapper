@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NetTopologySuite.Geometries;
 using OsmSharp.Complete;
+using OsmSharp.IO.PBF;
 using PraxisCore;
 using PraxisCore.PbfReader;
 using PraxisCore.Support;
@@ -772,53 +773,43 @@ namespace Larry
             var writeFolder = folders[0];
 
             EnumerationOptions eo = new EnumerationOptions() { RecurseSubdirectories = true };
-            var allZipFiles = Directory.EnumerateFiles(writeFolder, "*", eo).ToList();
+            var allZipFiles = Directory.EnumerateFiles(parentFolder, "*.zip", eo).ToList();
 
             var existingFiles = allZipFiles.Select(f => Path.GetFileName(f)).Distinct().ToList();
-            foreach(var folder in folders.Skip(1))
-            {
-                var allFiles = Directory.EnumerateFiles(writeFolder, "*", eo);
-                var absentFiles = allFiles.Where(f => !existingFiles.Contains(Path.GetFileName(f))).ToList();
-                //copy these wholesale.
-                foreach (var file in absentFiles)
-                {
-                    File.Copy(file, writeFolder + Path.GetFileName(file));
-                    allZipFiles.Add(writeFolder + Path.GetFileName(file));
-                }
-            }
+            var allFiles = Directory.EnumerateFiles(writeFolder, "*", eo);
+            ////foreach (var folder in folders.Skip(1))
+            //{
+            //    var folderFiles = Directory.EnumerateFiles(folder, "*", eo);
+            //    var absentFiles = allFiles.Where(f => !folderFiles.Contains(Path.GetFileName(f))).ToList();
+            //    //copy these wholesale.
+            //    foreach (var file in absentFiles)
+            //    {
+            //        File.Copy(file, writeFolder + Path.GetFileName(file));
+            //        allZipFiles.Add(writeFolder + Path.GetFileName(file));
+            //    }
+            //}
 
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
 
-            foreach (var zip in allZipFiles) //Parallel this? Disk acces is the issue for speed here
+            foreach (var zip in existingFiles)
             {
-                //If this file isn't present in the other sets, don't merge it.
-                bool merge = false;
-                foreach (var folder in folders.Skip(1)) //dont check same folder we're writing to.
-                {
-                    var subPath = zip.Replace(writeFolder, folder);
-                    if (File.Exists(subPath))
-                        merge = true;
-                }
-                if (merge == false)
-                    continue;
-
                 Console.WriteLine("Merging " + zip);
                 var finalEntries = new Dictionary<string, OfflineData.OfflineDataV2>();
-                var zipFileA = new ZipArchive(File.Open(zip, FileMode.Open), ZipArchiveMode.Update);
-                foreach (var entry in zipFileA.Entries)
-                {
-                    var streamA = entry.Open();
-                    var dataA = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamA);
-                    finalEntries.Add(entry.Name, dataA);
-                    streamA.Close();
-                    streamA.Dispose();
-                }
-                zipFileA.Dispose();
+                //var zipFileA = new ZipArchive(File.Open(zip, FileMode.Open), ZipArchiveMode.Update);
+                //foreach (var entry in zipFileA.Entries)
+                //{
+                //    var streamA = entry.Open();
+                //    var dataA = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamA);
+                //    finalEntries.Add(entry.Name, dataA);
+                //    streamA.Close();
+                //    streamA.Dispose();
+                //}
+                //zipFileA.Dispose();
 
-                foreach (var folder in folders.Skip(1)) //dont check same folder we're writing to.
+                foreach (var folder in folders)
                 {
-                    var subPath = zip.Replace(writeFolder, folder);
+                    var subPath = folder + "\\" + zip.Substring(0,2) + "\\" + zip;
                     if (File.Exists(subPath))
                     {
                         var zipFileB = new ZipArchive(File.Open(subPath, FileMode.Open), ZipArchiveMode.Read);
@@ -838,19 +829,30 @@ namespace Larry
                         mergingEntries = zipFileB.Entries.Where(e => !finalEntries.ContainsKey(e.Name));
                         foreach (var entry in mergingEntries)
                         {
+
                             var streamC = entry.Open();
                             var dataC = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamC);
                             streamC.Close();
                             streamC.Dispose();
                             finalEntries.Add(entry.Name, dataC);
                         }
+
+                        zipFileB.Dispose();
                     }
                 }
                 //Write new file.
-                File.Delete(zip);
-                var newZip = ZipFile.Open(zip, ZipArchiveMode.Create);
+                var outFile = writeFolder + "\\" + zip.Substring(0, 2) + "\\" + zip;
+                if (File.Exists(outFile))
+                    File.Delete(outFile);
+                var destParentFolder = Path.GetDirectoryName(outFile);
+                if (!Directory.Exists(destParentFolder))
+                    Directory.CreateDirectory(destParentFolder);
+
+                var newZip = ZipFile.Open(outFile, ZipArchiveMode.Create);
+                var timeGenerated = DateTime.UtcNow.ToUnixTime();
                 foreach (var entry in finalEntries)
                 {
+                    entry.Value.dateGenerated = timeGenerated;
                     var e = newZip.CreateEntry(entry.Key).Open();
                     using (var streamWriter = new StreamWriter(e))
                         streamWriter.Write(JsonSerializer.Serialize(entry.Value, jso));

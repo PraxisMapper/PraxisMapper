@@ -1045,7 +1045,7 @@ namespace PraxisCore
         {
             OfflineDataV2 bigger, smaller;
 
-            if (existing.entries.Count > adding.entries.Count)
+            if (existing.entries.Sum(e => e.Value.Count()) > adding.entries.Sum(e => e.Value.Count()))
             {
                 bigger = existing;
                 smaller = adding;
