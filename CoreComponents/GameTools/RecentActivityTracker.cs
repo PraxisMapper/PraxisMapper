@@ -21,7 +21,6 @@ namespace PraxisCore.GameTools {
         /// </summary>
         public DateTime nextPurge { get; set; } = DateTime.UtcNow;
 
-
         /// <summary>
         /// Determines if the player has recently entered this PlusCode. Returns 'true' if this is the first time in the last $hourDelay they have entered this Cell10.
         /// </summary>

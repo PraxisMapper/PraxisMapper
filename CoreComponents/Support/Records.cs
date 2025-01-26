@@ -15,5 +15,4 @@ namespace PraxisCore.Support
 
     //This one will replace the OsmCompleteGeo class and slightly boost performance reading PBF files.
     public record class FundamentalOsm(Coordinate[][] outers, Coordinate[][] inners, TagsCollection tags, int entryType, long entryId);
-
 }

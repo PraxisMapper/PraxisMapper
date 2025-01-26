@@ -10,13 +10,7 @@ namespace PraxisCore.GameTools
     /// This is dramatically faster than GeometryTracker when only drawing PlusCode cells as squares. For arbitrary geometries, GeometryTracker is required.
     /// </summary>
     public sealed class CellTracker {
-
-
-        /// <summary>
-        
-        /// </summary>
         public Dictionary<string, byte> Visited { get; set; } = new Dictionary<string, byte>();
-
 
         /// <summary>
         /// Add a PlusCode cell to the explored geometry. Can be any valid PlusCode size, though if you are tracking Cell11s consider using RecentPath instead of GeometryTracker.

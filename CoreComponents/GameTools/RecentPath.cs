@@ -6,7 +6,6 @@ using System.Linq;
 
 namespace PraxisCore.GameTools
 {
-
     /// <summary>
     /// A class used to save Point locations to JSON format inside other classes.
     /// </summary>
