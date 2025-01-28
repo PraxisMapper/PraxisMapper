@@ -102,15 +102,18 @@ namespace PraxisMapper
                                 try
                                 {
                                     var startupMethod = t.GetMethod("Startup");
-                                    startupMethod.Invoke(t, null);
+                                    var instance = (IPraxisPlugin)Activator.CreateInstance(t);
+                                    startupMethod.Invoke(instance, null);
 
-                                    var styles = t.GetProperty("Styles").GetValue(t);
+                                    var styles = t.GetProperty("Styles").GetValue(instance);
                                     if (styles != null)
                                     {
                                         TagParser.InsertStyles(styles as List<StyleEntry>);
                                     }
 
-                                    GlobalPlugins.plugins.Add((IPraxisPlugin)Activator.CreateInstance(t));
+                                    //TODO: I may need to see if the main class needs to be the IPraxisPlugin, instead of throwing it off to a separate file
+                                    //for this to work. Or I may need to track assemblies rather than types that use the interface?
+                                    GlobalPlugins.plugins.Add(instance);
                                 }
                                 catch (Exception ex)
                                 {
