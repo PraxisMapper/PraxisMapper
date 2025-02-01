@@ -776,19 +776,6 @@ namespace Larry
             var allZipFiles = Directory.EnumerateFiles(parentFolder, "*.zip", eo).ToList();
 
             var existingFiles = allZipFiles.Select(f => Path.GetFileName(f)).Distinct().ToList();
-            var allFiles = Directory.EnumerateFiles(writeFolder, "*", eo);
-            ////foreach (var folder in folders.Skip(1))
-            //{
-            //    var folderFiles = Directory.EnumerateFiles(folder, "*", eo);
-            //    var absentFiles = allFiles.Where(f => !folderFiles.Contains(Path.GetFileName(f))).ToList();
-            //    //copy these wholesale.
-            //    foreach (var file in absentFiles)
-            //    {
-            //        File.Copy(file, writeFolder + Path.GetFileName(file));
-            //        allZipFiles.Add(writeFolder + Path.GetFileName(file));
-            //    }
-            //}
-
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
 
@@ -812,32 +799,47 @@ namespace Larry
                     var subPath = folder + "\\" + zip.Substring(0,2) + "\\" + zip;
                     if (File.Exists(subPath))
                     {
-                        var zipFileB = new ZipArchive(File.Open(subPath, FileMode.Open), ZipArchiveMode.Read);
-
-                        var mergingEntries = zipFileB.Entries.Where(e => finalEntries.ContainsKey(e.Name));
-                        foreach (var entry in mergingEntries)
+                        FileStream filestream = null;
+                        ZipArchive zipFileB = null;
+                        try
                         {
-                            var streamB = entry.Open();
-                            var dataB = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamB);
-                            streamB.Close();
-                            streamB.Dispose();
+                            filestream = File.Open(subPath, FileMode.Open);
+                            zipFileB = new ZipArchive(filestream, ZipArchiveMode.Read);
 
-                            var dataA = finalEntries[entry.Name];
-                            dataA = OfflineData.MergeOfflineFiles(dataA, dataB);
+                            var mergingEntries = zipFileB.Entries.Where(e => finalEntries.ContainsKey(e.Name));
+                            foreach (var entry in mergingEntries)
+                            {
+                                var streamB = entry.Open();
+                                var dataB = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamB);
+                                streamB.Close();
+                                streamB.Dispose();
+
+                                var dataA = finalEntries[entry.Name];
+                                dataA = OfflineData.MergeOfflineFiles(dataA, dataB);
+                            }
+
+                            mergingEntries = zipFileB.Entries.Where(e => !finalEntries.ContainsKey(e.Name));
+                            foreach (var entry in mergingEntries)
+                            {
+                                var streamC = entry.Open();
+                                var dataC = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamC);
+                                streamC.Close();
+                                streamC.Dispose();
+                                finalEntries.Add(entry.Name, dataC);
+                            }
                         }
-
-                        mergingEntries = zipFileB.Entries.Where(e => !finalEntries.ContainsKey(e.Name));
-                        foreach (var entry in mergingEntries)
+                        catch(Exception ex)
                         {
-
-                            var streamC = entry.Open();
-                            var dataC = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamC);
-                            streamC.Close();
-                            streamC.Dispose();
-                            finalEntries.Add(entry.Name, dataC);
+                            Log.WriteLog("File " + subPath + " failed to read and merge, zip probably corrupt");
                         }
-
-                        zipFileB.Dispose();
+                        finally
+                        {
+                            if (zipFileB != null) zipFileB.Dispose();
+                            if (filestream != null)
+                            {
+                                filestream.Close(); filestream.Dispose();
+                            }
+                        }
                     }
                 }
                 //Write new file.

@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -813,8 +814,17 @@ namespace PraxisCore
                     }
                     else
                     {
-                        entry = inner_zip.CreateEntry(plusCode + ".json", CompressionLevel.Optimal);
-                        entryStream = entry.Open();
+                        try
+                        {
+                            entry = inner_zip.CreateEntry(plusCode + ".json", CompressionLevel.Optimal);
+                            entryStream = entry.Open();
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.WriteLog("Error reading " + plusCode + ": " + ex.Message);
+                            //Zip file is probably corrupt, skip it
+                            return;
+                        }
                     }
 
                     using (var streamWriter = new StreamWriter(entryStream))
@@ -1076,26 +1086,29 @@ namespace PraxisCore
                     }
                 }
             }
-
+            
             //Step 2: merge sets of entries
-            foreach (var entryList in smaller.entries)
+            var allEntries = bigger.entries.Keys.Union(smaller.entries.Keys).ToList();
+            foreach (var entryList in allEntries)
             {
-                if (!bigger.entries.TryGetValue(entryList.Key, out var entry))
+                var hasBig = bigger.entries.TryGetValue(entryList, out var bigEntry);
+                var hasSmall = smaller.entries.TryGetValue(entryList, out var smallEntry);
+
+                if (hasBig && !hasSmall)
+                    bigger.entries[entryList] = bigEntry;
+                else if (!hasBig && hasSmall)
+                    bigger.entries[entryList] = smallEntry;
+                else if (hasBig && hasSmall)
                 {
-                    var addList = entryList.Value.Select(e => new OfflinePlaceEntry() { p = e.p, gt = e.gt, tid = e.tid, nid = e.nid > 0 ? newNameMap[e.nid.Value] : null, OsmId = e.OsmId }).ToList();
-                    bigger.entries.Add(entryList.Key, addList);
-                }
-                else if (entry != null)
-                {
-                    //TODO: confirm this test logic still works. Will be tested automatically as I work on this stuff for the year.
-                    //merge entries
-                    var list2 = entryList.Value;
-                    foreach(var e in list2)
+                    //NOW we merge the two sets to bigger.
+                    foreach (var e in smallEntry)
                     {
-                        if (e.nid > 0)
-                            e.nid = newNameMap[e.nid.Value];
+                        if (e.nid > 0 && newNameMap.TryGetValue(e.nid.Value, out var newId)) // Adding this because its failing somewhere.
+                            e.nid = newId;
+                        //else //nope, this needs that sencond part of the and specifically to be an error.
+                        //Log.WriteLog("Found an error merging files - nid not found in table at " + bigger.olc);
                     }
-                    entry.AddRange(list2.Where(l2 => !entry.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)));
+                    bigEntry.AddRange(smallEntry.Where(l2 => !bigEntry.Any(l1 => l1.p == l2.p && l1.nid == l2.nid && l1.tid == l2.tid && l1.gt == l2.gt)));
                 }
             }
 
