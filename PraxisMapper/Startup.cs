@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -32,6 +33,10 @@ namespace PraxisMapper
         bool useAntiCheat;
         bool usePlugins;
         bool useCaching;
+        bool useRateLimit;
+        int concurrentConnections = 0;
+        int maxRequestsWindow = 0;
+        int timeWindowSeconds = 0;
         string maintenanceMessage = "";
         public static IConfiguration Configuration { get; set; }
 
@@ -44,6 +49,10 @@ namespace PraxisMapper
             useAntiCheat = Configuration.GetValue<bool>("enableAntiCheat");
             usePlugins = Configuration.GetValue<bool>("enablePlugins");
             useCaching = Configuration.GetValue<bool>("enableServerCaching");
+            useRateLimit = Configuration.GetValue<bool>("enableRateLimits");
+            maxRequestsWindow = Configuration.GetValue<int>("maxRequestsPerTimeWindow");
+            timeWindowSeconds = Configuration.GetValue<int>("timeWindowSeconds");
+            concurrentConnections = Configuration.GetValue<int>("maxConcurrentRequests");
             maintenanceMessage = Configuration.GetValue<string>("maintenanceMessage");
             PraxisHeaderCheck.ServerAuthKey = Configuration.GetValue<string>("serverAuthKey");
             Log.SaveToFile = Configuration.GetValue<bool>("enableFileLogging");
@@ -69,6 +78,17 @@ namespace PraxisMapper
             services.AddResponseCompression();
             services.AddOpenApi();
             services.AddEndpointsApiExplorer();
+
+            if (useRateLimit)
+            {
+                services.AddRateLimiter(_ => _.AddFixedWindowLimiter(policyName: "fixed", options =>
+                {
+                    options.PermitLimit = maxRequestsWindow;
+                    options.Window = TimeSpan.FromSeconds(timeWindowSeconds); 
+                    options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                    options.QueueLimit = concurrentConnections;
+                }));
+            }
 
             var executionFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             IMapTiles mapTiles = null;
@@ -212,10 +232,10 @@ namespace PraxisMapper
 
             PraxisCacheHelper.cache = cache;
 
-            //app.UseHttpsRedirection(); //Testing using only http on app instead of https to allow me to use a personal PC while getting a server functional
             app.UseStaticFiles(new StaticFileOptions() { FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "Content")), RequestPath = "/Content" });
             app.UseRouting();
             app.UseResponseCompression();
+            app.UseRateLimiter();
 
             app.UsePraxisMaintenanceMessage(maintenanceMessage);
             app.UseGlobalErrorHandler();
