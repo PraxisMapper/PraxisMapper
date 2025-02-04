@@ -704,6 +704,7 @@ namespace Larry
         public static void FudgeIt()
         {
             //Adjust some values to make things work better in general for apps
+            //TODO: apply this logic to OfflinePlaces as well.
 
             var db = new PraxisContext();
 
@@ -744,6 +745,29 @@ namespace Larry
 
                 db.Places.AddRange(newPlaces);
                 db.Places.Remove(aiwa);
+            }
+
+            //Relation 6535292 - Tongass National Forest, another mulitpolygon with over 18,000 inner geometries.
+            var tnf = db.Places.Include(p => p.PlaceData).FirstOrDefault(p => p.SourceItemID == 6535292 && p.SourceItemType == 3);
+            if (tnf != null)
+            {
+                var newPlaces = ((MultiPolygon)tnf.ElementGeometry).Select(p => new DbTables.Place() { ElementGeometry = p, Name = tnf.Name, PlaceData = tnf.PlaceData, Tags = tnf.Tags, SourceItemID = tnf.SourceItemID, SourceItemType = tnf.SourceItemType });
+                foreach (var np in newPlaces)
+                    np.DrawSizeHint = GeometrySupport.CalculateDrawSizeHint(np, "mapTiles");
+
+                db.Places.AddRange(newPlaces);
+                db.Places.Remove(tnf);
+            }
+
+            var tnfO = db.OfflinePlaces.FirstOrDefault(p => p.SourceItemID == 6535292 && p.SourceItemType == 3);
+            if (tnfO != null)
+            {
+                var newPlaces2 = ((MultiPolygon)tnfO.ElementGeometry).Select(p => new DbTables.OfflinePlace() { ElementGeometry = p, Name = tnf.Name, SourceItemID = tnfO.SourceItemID, SourceItemType = tnfO.SourceItemType, StyleName = tnfO.StyleName  });
+                foreach (var np in newPlaces2)
+                    np.DrawSizeHint = GeometrySupport.CalculateDrawSizeHint(np.ElementGeometry, "mapTiles", np.StyleName);
+
+                db.OfflinePlaces.AddRange(newPlaces2);
+                db.OfflinePlaces.Remove(tnfO);
             }
 
             db.SaveChanges();
