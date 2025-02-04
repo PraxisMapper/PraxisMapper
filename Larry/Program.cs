@@ -762,7 +762,7 @@ namespace Larry
             var tnfO = db.OfflinePlaces.FirstOrDefault(p => p.SourceItemID == 6535292 && p.SourceItemType == 3);
             if (tnfO != null)
             {
-                var newPlaces2 = ((MultiPolygon)tnfO.ElementGeometry).Select(p => new DbTables.OfflinePlace() { ElementGeometry = p, Name = tnf.Name, SourceItemID = tnfO.SourceItemID, SourceItemType = tnfO.SourceItemType, StyleName = tnfO.StyleName  });
+                var newPlaces2 = ((MultiPolygon)tnfO.ElementGeometry).Select(p => new DbTables.OfflinePlace() { ElementGeometry = p, Name = tnfO.Name, SourceItemID = tnfO.SourceItemID, SourceItemType = tnfO.SourceItemType, StyleName = tnfO.StyleName  });
                 foreach (var np in newPlaces2)
                     np.DrawSizeHint = GeometrySupport.CalculateDrawSizeHint(np.ElementGeometry, "mapTiles", np.StyleName);
 
