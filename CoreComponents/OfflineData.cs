@@ -321,7 +321,7 @@ namespace PraxisCore
             JsonSerializerOptions jso = new JsonSerializerOptions();
             jso.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
             string data = JsonSerializer.Serialize(finalData, jso);
-
+            
             if (saveToFile)
             {
                 lock (zipLock)
@@ -633,9 +633,9 @@ namespace PraxisCore
 
             if (geo.GeometryType == "MultiPolygon")
             {
-                foreach (var poly in ((MultiPolygon)geo).Geometries) //This should be the same as the Polygon code below.
+                foreach (Polygon poly in ((MultiPolygon)geo).Geometries) //This should be the same as the Polygon code below.
                 {
-                    points.AddRange(GetPolygonPoints(poly as Polygon, min, xRes, yRes));
+                    points.AddRange(GetPolygonPoints(poly, min, xRes, yRes));
                 }
             }
             else if (geo.GeometryType == "Polygon")
@@ -660,41 +660,54 @@ namespace PraxisCore
                 results.Add(string.Join("|", p.Coordinates.Select(c => (int)Math.Round((c.X - min.Longitude) / xRes) + "," + ((int)Math.Round((c.Y - min.Latitude) / yRes)))));
             else
             {
-                //Split this polygon  into smaller pieces, split on the center of each hole present longitudinally
+                //Split this polygon  into smaller pieces, split on the center of each hole present on latitude
                 //West to east direction chosen arbitrarily.
                 var westEdge = p.Coordinates.Min(c => c.X);
+                var eastEdge = p.Coordinates.Max(c => c.X);
                 var northEdge = p.Coordinates.Max(c => c.Y);
                 var southEdge = p.Coordinates.Min(c => c.Y);
+
 
                 List<double> splitPoints = new List<double>(p.Holes.Length);
                 foreach (var hole in p.Holes.OrderBy(h => h.Centroid.X))
                     splitPoints.Add(hole.Centroid.X);
+                splitPoints.Add(eastEdge);
 
                 Polygon splitPoly;
                 Geometry subPoly;
+                var lastWest = westEdge;
                 foreach (var point in splitPoints)
                 {
                     try
                     {
-                        splitPoly = new GeoArea(southEdge, westEdge, northEdge, point).ToPolygon();
+                        splitPoly = new GeoArea(southEdge, lastWest, northEdge, point).ToPolygon();
                         subPoly = p.Intersection(splitPoly);
 
                         //Still need to check that we have reasonable geometry here.
                         if (subPoly.GeometryType == "Polygon")
-                            results.AddRange(GetPolygonPoints(subPoly as Polygon, min, xRes, yRes));
+                        {
+                            var sp = GeometrySupport.CCWCheck(subPoly as Polygon);
+                            results.AddRange(GetPolygonPoints(sp, min, xRes, yRes));
+                        }
                         else if (subPoly.GeometryType == "MultiPolygon")
                         {
-                            foreach (var p2 in ((MultiPolygon)subPoly).Geometries)
-                                results.AddRange(GetPolygonPoints(p2 as Polygon, min, xRes, yRes));
+                            foreach (Polygon p2 in ((MultiPolygon)subPoly).Geometries)
+                            {
+                                var sp2 = GeometrySupport.CCWCheck(p2);
+                                results.AddRange(GetPolygonPoints(sp2, min, xRes, yRes));
+                            }
                         }
                         else
-                            Log.WriteLog("Offline proccess error: Got geoType " + subPoly.GeometryType + ", which wasnt expected");
+                            Log.WriteLog("Offline process error: Got geoType " + subPoly.GeometryType + ", which wasn't expected");
                     }
                     catch (Exception ex)
                     {
-                        Log.WriteLog("Offline proccess error: " + ex.Message);
+                        Log.WriteLog("Offline process error: " + ex.Message);
                     }
-                    westEdge = point;
+                    finally
+                    {
+                        lastWest = point;
+                    }
                 }
             }
             return results.Distinct().ToList(); //In the unlikely case splitting ends up processing the same part twice
