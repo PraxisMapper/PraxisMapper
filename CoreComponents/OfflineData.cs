@@ -422,23 +422,20 @@ namespace PraxisCore
                         var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
                         foreach (var coordSet in coordSets)
                         {
-                            foreach (var cs in coordSet)
-                            {
-                                if (cs == "")
-                                    //if (coordSet.Count == 0)
-                                    continue;
+                            if (coordSet == "")
+                                //if (coordSet.Count == 0)
+                                continue;
 
-                                var offline = new OfflinePlaceEntry();
-                                offline.nid = nameID;
-                                offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
+                            var offline = new OfflinePlaceEntry();
+                            offline.nid = nameID;
+                            offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
 
-                                offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
-                                offline.p = cs;
-                                offline.s = sizeOrder;
-                                offline.lo = styleEntry.PaintOperations.Min(p => p.LayerId);
-                                offline.OsmId = place.SourceItemID;
-                                entries.Add(offline);
-                            }
+                            offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+                            offline.p = coordSet;
+                            offline.s = sizeOrder;
+                            offline.lo = styleEntry.PaintOperations.Min(p => p.LayerId);
+                            offline.OsmId = place.SourceItemID;
+                            entries.Add(offline);
                         }
                     });
                     //TODO: determine why one south america place was null.
@@ -583,22 +580,19 @@ namespace PraxisCore
                         var coordSets = GetCoordEntries(geo, cell.Min, xRes, yRes); //Original human-readable strings
                         foreach (var coordSet in coordSets)
                         {
-                            foreach (var cs in coordSet)
-                            {
-                                if (cs == "")
-                                    continue;
+                            if (coordSet == "")
+                                continue;
 
-                                var offline = new OfflinePlaceEntry();
-                                offline.nid = nameID;
-                                offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
+                            var offline = new OfflinePlaceEntry();
+                            offline.nid = nameID;
+                            offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
 
-                                offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
-                                offline.p = cs;
-                                offline.s = sizeOrder;
-                                offline.lo = styleEntry.PaintOperations.Min(p => p.LayerId);
-                                offline.OsmId = place.SourceItemID;
-                                entries.Add(offline);
-                            }
+                            offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+                            offline.p = coordSet;
+                            offline.s = sizeOrder;
+                            offline.lo = styleEntry.PaintOperations.Min(p => p.LayerId);
+                            offline.OsmId = place.SourceItemID;
+                            entries.Add(offline);
                         }
                     });
                     //TODO: determine why one south america place was null.
@@ -633,9 +627,9 @@ namespace PraxisCore
             }
         }
 
-        public static List<List<string>> GetCoordEntries(Geometry geo, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
+        public static List<string> GetCoordEntries(Geometry geo, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
         {
-            List<List<string>> points = new List<List<string>>() { new List<string>()};
+            List<string> points = new List<string>(geo.Coordinates.Length);
 
             if (geo.GeometryType == "MultiPolygon")
             {
@@ -649,7 +643,7 @@ namespace PraxisCore
                 points.AddRange(GetPolygonPoints(geo as Polygon, min, xRes, yRes));
             }
             else
-                points.First().Add(string.Join("|", geo.Coordinates.Select(c => (int)Math.Round((c.X - min.Longitude) / xRes) + "," + ((int)Math.Round((c.Y - min.Latitude) / yRes)))));
+                points.Add(string.Join("|", geo.Coordinates.Select(c => (int)Math.Round((c.X - min.Longitude) / xRes) + "," + ((int)Math.Round((c.Y - min.Latitude) / yRes)))));
 
             if (points.Count == 0)
             {
@@ -659,11 +653,11 @@ namespace PraxisCore
             return points;
         }
 
-        public static List<List<string>> GetPolygonPoints(Polygon p, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
+        public static List<string> GetPolygonPoints(Polygon p, GeoPoint min, double xRes = ConstantValues.resolutionCell11Lon, double yRes = ConstantValues.resolutionCell11Lat)
         {
-            List<List<string>> results = new List<List<string>>() { new List<string>() };
+            List<string> results = new List<string>(p.Coordinates.Length);
             if (p.Holes.Length == 0)
-                results.First().Add(string.Join("|", p.Coordinates.Select(c => (int)Math.Round((c.X - min.Longitude) / xRes) + "," + ((int)Math.Round((c.Y - min.Latitude) / yRes)))));
+                results.Add(string.Join("|", p.Coordinates.Select(c => (int)Math.Round((c.X - min.Longitude) / xRes) + "," + ((int)Math.Round((c.Y - min.Latitude) / yRes)))));
             else
             {
                 //Split this polygon  into smaller pieces, split on the center of each hole present longitudinally

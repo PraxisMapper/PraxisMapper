@@ -32,8 +32,7 @@ namespace PraxisCore
         /// <param name="original"></param>
         /// <param name="bufferSize"></param>
         /// <returns></returns>
-        public static GeoArea MakeBufferedGeoArea(GeoArea original, double bufferSize)
-        {
+        public static GeoArea MakeBufferedGeoArea(GeoArea original, double bufferSize) {
             return original.PadGeoArea(bufferSize);
         }
 
@@ -54,22 +53,18 @@ namespace PraxisCore
             //NTS specs also requires holes in a polygon to be in clockwise order, opposite the outer shell.
             for (int i = 0; i < p.Holes.Length; i++)
             {
-                if (!p.Holes[i].IsCCW)
-                { //this looks backwards, but it passes for SQL Server
+                if (!p.Holes[i].IsCCW) { //this looks backwards, but it passes for SQL Server
                     p.Holes[i] = (LinearRing)p.Holes[i].Reverse();
-                    if (p.Holes[i].IsCCW)
-                    {
+                    if(p.Holes[i].IsCCW) {
                         Log.WriteLog("Hole refused to orient CW correctly.");
                         return null;
                     }
                 }
             }
 
-            if (!p.Shell.IsCCW)
-            {
+            if (!p.Shell.IsCCW) {
                 p = (Polygon)p.Reverse();
-                if (!p.Shell.IsCCW)
-                {
+                if (!p.Shell.IsCCW) {
                     Log.WriteLog("shell refused to orient CCW correctly.");
                     return null;
                 }
@@ -129,7 +124,7 @@ namespace PraxisCore
                     else
                         place = mp;
                 }
-                return place;
+                return place; 
             }
 
             //Note: SimplifyArea CAN reverse a polygon's orientation, especially in a multi-polygon, so don't do CheckCCW until after
@@ -345,20 +340,20 @@ namespace PraxisCore
                 var DrawSizeHint = CalculateDrawSizeHint(geometry, styleSet, styleName);
                 List<OfflinePlaceEntry> entries = new List<OfflinePlaceEntry>();
                 var coordsets = OfflineData.GetCoordEntries(geometry, OpenLocationCode.DecodeValid(plusCode).Min);
-                foreach (var cs in coordsets)
-                    foreach (var c in cs)
-                    {
-                        var place = new OfflinePlaceEntry();
-                        place.gt = geometry.GeometryType == "Point" ? 1 : geometry.GeometryType == "LineString" ? 2 : style.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
-                        place.lo = style.PaintOperations.Min(p => p.LayerId);
-                        //place.nid //might have to be handled outside of this call since the nametable is shared.
-                        place.OsmId = g.entryId;
-                        place.p = c;
-                        place.s = DrawSizeHint;
-                        place.tid = style.MatchOrder;
-                        entries.Add(place);
-                    }
-                return entries;
+                foreach (var c in coordsets)
+                {
+                    var place = new OfflinePlaceEntry();
+                    place.gt = geometry.GeometryType == "Point" ? 1 : geometry.GeometryType == "LineString" ? 2 : style.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
+                    place.lo = style.PaintOperations.Min(p => p.LayerId);
+                    //place.nid //might have to be handled outside of this call since the nametable is shared.
+                    place.OsmId = g.entryId;
+                    place.p = c;
+                    place.s = DrawSizeHint;
+                    place.tid = style.MatchOrder;
+                    entries.Add(place);
+                }
+
+                return entries;                
             }
             catch (Exception ex)
             {
@@ -384,7 +379,7 @@ namespace PraxisCore
             {
                 var lineWidth = paintOp.Max(p => p.LineWidthDegrees);
                 var rectSize = lineWidth * place.ElementGeometry.Length;
-                return (rectSize / (ConstantValues.squareCell11Area));
+                return (rectSize / (ConstantValues.squareCell11Area));  
             }
             else if (paintOp.Any(p => !string.IsNullOrEmpty(p.FileName)))
             {
@@ -484,8 +479,7 @@ namespace PraxisCore
         /// <param name="p"></param>
         /// <param name="otherPoint"></param>
         /// <returns></returns>
-        public static double MetersDistanceTo(Point p, Point otherPoint)
-        {
+        public static double MetersDistanceTo(Point p, Point otherPoint) {
             return MetersDistanceTo(p.X, p.Y, otherPoint.X, otherPoint.Y);
         }
 
@@ -495,8 +489,7 @@ namespace PraxisCore
         /// <param name="plusCode1"></param>
         /// <param name="plusCode2"></param>
         /// <returns></returns>
-        public static double MetersDistanceTo(string plusCode1, string plusCode2)
-        {
+        public static double MetersDistanceTo(string plusCode1, string plusCode2) {
             return MetersDistanceTo(plusCode1.ToGeoArea().ToPoint(), plusCode2.ToGeoArea().ToPoint());
         }
 
@@ -508,8 +501,7 @@ namespace PraxisCore
         /// <param name="x2"></param>
         /// <param name="y2"></param>
         /// <returns></returns>
-        public static double MetersDistanceTo(double x1, double y1, double x2, double y2)
-        {
+        public static double MetersDistanceTo (double x1,  double y1, double x2, double y2) {
             double calcLat = Math.Sin((y2.ToRadians() - y1.ToRadians()) * 0.5);
             double calcLon = Math.Sin((x2.ToRadians() - x1.ToRadians()) * 0.5);
             double q = calcLat * calcLat + calcLon * calcLon * (Math.Cos(y2.ToRadians()) * Math.Cos(y1.ToRadians()));
@@ -541,8 +533,7 @@ namespace PraxisCore
         /// <param name="point2"></param>
         /// <param name="time2"></param>
         /// <returns></returns>
-        public static double SpeedCheck(Point point1, DateTime time1, Point point2, DateTime time2)
-        {
+        public static double SpeedCheck(Point point1, DateTime time1, Point point2, DateTime time2) {
             var time = Math.Abs((time1 - time2).TotalSeconds);
             var distance = MetersDistanceTo(point1, point2);
             var speed = distance / time; //Speed is meters/second.
