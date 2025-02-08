@@ -773,6 +773,21 @@ namespace Larry
             db.SaveChanges();
         }
 
+        public static void CheckForOffenders(string cell)
+        {
+            //TODO: helper function, Load all the places in a Cell, sort them by complexity/size of geometry (more polygons is much slower in the database)
+            //and then list off their properties and info so I can track down more items that should get run through FudgeIt() for performance
+
+            var places = GetPlaces(cell.ToGeoArea());
+            var worst = places.OrderByDescending(p => p.ElementGeometry.NumGeometries).Take(10);
+
+            Console.WriteLine("Biggest places in " + cell + ":");
+            foreach (var place in worst)
+            {
+                Console.WriteLine(place.ElementGeometry.NumGeometries + " | " + place.Name + " | " + place.SourceItemID);
+            }
+        }
+
         public static void PruneFolders(string basepath)
         {
             var folders = Directory.GetDirectories(basepath);
@@ -807,17 +822,6 @@ namespace Larry
             {
                 Console.WriteLine("Merging " + zip);
                 var finalEntries = new Dictionary<string, OfflineData.OfflineDataV2>();
-                //var zipFileA = new ZipArchive(File.Open(zip, FileMode.Open), ZipArchiveMode.Update);
-                //foreach (var entry in zipFileA.Entries)
-                //{
-                //    var streamA = entry.Open();
-                //    var dataA = JsonSerializer.Deserialize<OfflineData.OfflineDataV2>(streamA);
-                //    finalEntries.Add(entry.Name, dataA);
-                //    streamA.Close();
-                //    streamA.Dispose();
-                //}
-                //zipFileA.Dispose();
-
                 foreach (var folder in folders)
                 {
                     var subPath = folder + "\\" + zip.Substring(0,2) + "\\" + zip;
@@ -840,6 +844,7 @@ namespace Larry
 
                                 var dataA = finalEntries[entry.Name];
                                 dataA = OfflineData.MergeOfflineFiles(dataA, dataB);
+                                finalEntries[entry.Name] = dataA;
                             }
 
                             mergingEntries = zipFileB.Entries.Where(e => !finalEntries.ContainsKey(e.Name));
