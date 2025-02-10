@@ -1128,5 +1128,42 @@ namespace PraxisCore
 
             return bigger;
         }
+
+        //This is intended for helping reduce the size of the AdminBounds offline files, by not allowing geographies to overlap.
+        //TODO: test and confirm how much data this saves versus the full files. Test with 8FXQ, is largest admin bounds block I can see.
+        public static List<DbTables.OfflinePlace> TrimAdminEntriesToOne(List<DbTables.OfflinePlace> places)
+        {
+            //So to do this right, I take the places in order from smallest to largest
+            //then for each remove/Difference previous places in the list.
+
+            var tempPlaces = places.OrderBy(p => p.DrawSizeHint).ToList();
+            for (int i = 0; i < tempPlaces.Count; i++) 
+            {
+                for (int j = i; j > 0; j-- )
+                    tempPlaces[i].ElementGeometry = tempPlaces[i].ElementGeometry.Difference(places[j].ElementGeometry);
+            }
+
+            tempPlaces = tempPlaces.Where(p => !p.ElementGeometry.IsEmpty).ToList();
+
+            return tempPlaces;
+        }
+
+        public static void TestOfflineReduction()
+        {
+            var places = Place.GetOfflinePlaces("8FXQ22".ToGeoArea());
+
+            var set1 = MakeEntriesFromOffline("8FXQ22", "adminBoundsFilled", places);
+            var set1serialized = JsonSerializer.Serialize(set1, jso);
+
+            var trimmed = TrimAdminEntriesToOne(places);
+            var set2 = MakeEntriesFromOffline("8FXQ22", "adminBoundsFilled", trimmed);
+            var set2serialized = JsonSerializer.Serialize(set2, jso);
+
+            Console.WriteLine("Set 1 text is " + set1serialized.Length);
+            Console.WriteLine("Set 2 text is " + set2serialized.Length);
+
+
+
+        }
     }
 }
