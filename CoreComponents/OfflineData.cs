@@ -1136,11 +1136,13 @@ namespace PraxisCore
             //So to do this right, I take the places in order from smallest to largest
             //then for each remove/Difference previous places in the list.
 
-            var tempPlaces = places.OrderBy(p => p.DrawSizeHint).ToList();
+            var styleData = TagParser.allStyleGroups["adminBoundsFilled"];
+            //sortByStyleName = .ToDictionary<string, int>;
+            var tempPlaces = places.OrderByDescending(p => styleData[p.StyleName].MatchOrder).ToList();
             for (int i = 0; i < tempPlaces.Count; i++) 
             {
-                for (int j = i; j > 0; j-- )
-                    tempPlaces[i].ElementGeometry = tempPlaces[i].ElementGeometry.Difference(places[j].ElementGeometry);
+                for (int j = i+1; j < tempPlaces.Count; j++ )
+                    tempPlaces[j].ElementGeometry = tempPlaces[j].ElementGeometry.Difference(tempPlaces[i].ElementGeometry);
             }
 
             tempPlaces = tempPlaces.Where(p => !p.ElementGeometry.IsEmpty).ToList();
