@@ -761,6 +761,9 @@ namespace PraxisCore
                     {
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetOfflinePlaces(plusCode.ToGeoArea()); // Not padded, because this isn't drawing stuff.
+                        Parallel.ForEach(places, (place) => {
+                            place.ElementGeometry = place.ElementGeometry.Intersection(area);
+                        });
                         load.Stop();
                         Console.WriteLine("Places loaded in " + load.Elapsed + ", count " + places.Count.ToString() + ", biggest " + places.Max(p => p.ElementGeometry.Coordinates.Length).ToString());
                     }
