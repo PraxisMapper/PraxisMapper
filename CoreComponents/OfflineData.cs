@@ -861,10 +861,6 @@ namespace PraxisCore
 
         public static OfflineDataV2Min MakeMinimizedOfflineEntries(string plusCode, string stylesToUse, List<DbTables.OfflinePlace> places = null)
         {
-            using var db = new PraxisContext();
-            db.Database.SetCommandTimeout(600);
-            db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-            db.ChangeTracker.AutoDetectChangesEnabled = false;
             var styles = stylesToUse.Split(",");
 
             var cell = plusCode.ToGeoArea();
@@ -1007,7 +1003,6 @@ namespace PraxisCore
                 var finalEntries = entries.OrderByDescending(e => e.r).ToList(); //so they'll be drawn biggest to smallest for sure.
                 finalData.entries[style] = finalEntries;
             }
-            db.Dispose();
 
             if (finalData.entries.Count == 0)
                 return null;
