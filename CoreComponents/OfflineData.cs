@@ -1163,9 +1163,6 @@ namespace PraxisCore
 
             Console.WriteLine("Set 1 text is " + set1serialized.Length);
             Console.WriteLine("Set 2 text is " + set2serialized.Length);
-
-
-
         }
     }
 }
