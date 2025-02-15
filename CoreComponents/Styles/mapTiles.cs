@@ -97,13 +97,14 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "amenity", Value = "planetarium", MatchType = "equals" },
             }},
-            new StyleEntry() { IsGameElement = true, MatchOrder = 80, Name ="artsCulture", StyleSet = "mapTiles",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "amenity", Value = "planetarium", MatchType = "equals" },
-            }},
+            //This USED to be a catch-all style, and was replaced by the entries from 40-390
+            //new StyleEntry() { IsGameElement = true, MatchOrder = 80, Name ="artsCulture", StyleSet = "mapTiles",
+            //    PaintOperations = new List<StylePaint>() {
+            //        new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
+            //    },
+            //    StyleMatchRules = new List<StyleMatchRule>() {
+            //        new StyleMatchRule() { Key = "amenity", Value = "planetarium", MatchType = "equals" },
+            //}},
             new StyleEntry() { IsGameElement = true, MatchOrder = 90, Name ="library", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "3B3B3B", FillOrStroke = "fill", LineWidthDegrees=0.0000125F, LinePattern= "solid", LayerId = 100 }
