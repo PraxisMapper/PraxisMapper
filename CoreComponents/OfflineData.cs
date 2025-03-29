@@ -1105,16 +1105,28 @@ namespace PraxisCore
                 var hasBig = bigger.entries.TryGetValue(entryList, out var bigEntry);
                 var hasSmall = smaller.entries.TryGetValue(entryList, out var smallEntry);
 
+                //TODO: I still need to check for updated nametable entries when dropping in a whole block from the other file.
                 if (hasBig && !hasSmall)
+                {
+                    foreach (var e in bigEntry)
+                        if (e.nid > 0 && newNameMap.TryGetValue(e.nid.Value, out var newId))
+                            e.nid = newId;
                     bigger.entries[entryList] = bigEntry;
+                }
                 else if (!hasBig && hasSmall)
+                {
+                    foreach (var e in smallEntry)
+                        if (e.nid > 0 && newNameMap.TryGetValue(e.nid.Value, out var newId))
+                            e.nid = newId;
                     bigger.entries[entryList] = smallEntry;
+                }
+                    
                 else if (hasBig && hasSmall)
                 {
                     //NOW we merge the two sets to bigger.
                     foreach (var e in smallEntry)
                     {
-                        if (e.nid > 0 && newNameMap.TryGetValue(e.nid.Value, out var newId)) // Adding this because its failing somewhere.
+                        if (e.nid > 0 && newNameMap.TryGetValue(e.nid.Value, out var newId))
                             e.nid = newId;
                         //else //nope, this needs that sencond part of the and specifically to be an error.
                         //Log.WriteLog("Found an error merging files - nid not found in table at " + bigger.olc);
@@ -1127,42 +1139,6 @@ namespace PraxisCore
                 bigger.nameTable = null;
 
             return bigger;
-        }
-
-        //This is intended for helping reduce the size of the AdminBounds offline files, by not allowing geographies to overlap.
-        //TODO: test and confirm how much data this saves versus the full files. Test with 8FXQ, is largest admin bounds block I can see.
-        public static List<DbTables.OfflinePlace> TrimAdminEntriesToOne(List<DbTables.OfflinePlace> places)
-        {
-            //So to do this right, I take the places in order from smallest to largest
-            //then for each remove/Difference previous places in the list.
-
-            var styleData = TagParser.allStyleGroups["adminBoundsFilled"];
-            //sortByStyleName = .ToDictionary<string, int>;
-            var tempPlaces = places.OrderByDescending(p => styleData[p.StyleName].MatchOrder).ToList();
-            for (int i = 0; i < tempPlaces.Count; i++) 
-            {
-                for (int j = i+1; j < tempPlaces.Count; j++ )
-                    tempPlaces[j].ElementGeometry = tempPlaces[j].ElementGeometry.Difference(tempPlaces[i].ElementGeometry);
-            }
-
-            tempPlaces = tempPlaces.Where(p => !p.ElementGeometry.IsEmpty).ToList();
-
-            return tempPlaces;
-        }
-
-        public static void TestOfflineReduction()
-        {
-            var places = Place.GetOfflinePlaces("8FXQ22".ToGeoArea());
-
-            var set1 = MakeEntriesFromOffline("8FXQ22", "adminBoundsFilled", places);
-            var set1serialized = JsonSerializer.Serialize(set1, jso);
-
-            var trimmed = TrimAdminEntriesToOne(places);
-            var set2 = MakeEntriesFromOffline("8FXQ22", "adminBoundsFilled", trimmed);
-            var set2serialized = JsonSerializer.Serialize(set2, jso);
-
-            Console.WriteLine("Set 1 text is " + set1serialized.Length);
-            Console.WriteLine("Set 2 text is " + set2serialized.Length);
         }
     }
 }
