@@ -3,7 +3,7 @@ An open-source server for location based games. Powered by OpenStreetMap data. T
 
 The fast-setup guide is readable <a href="https://praxismapper.hashnode.dev/setting-up-your-praxismapper-server">here</a>
 
-The Godot 4.1 components are available <a href="https://github.com/PraxisMapper/PraxisGodotComponents">over here</a> if you want to get a fast start on client development.
+The Godot 4.1+ components are available <a href="https://github.com/PraxisMapper/PraxisGodotComponents">over here</a> if you want to get a fast start on client development.
 
 Or, a fully function Godot 4.2 example can be found at <a href="https://github.com/PraxisMapper/WeekendSpaceProto">Weekend Space Command (Prototype)</a> to get a functional framework with global, minimized data.
 
