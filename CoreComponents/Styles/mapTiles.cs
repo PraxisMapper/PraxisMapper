@@ -629,9 +629,16 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>()
             {
                 new StyleMatchRule() { Key="aeroway", Value="terminal", MatchType="or"},
+                //new StyleMatchRule() { Key="aerialway", Value="station", MatchType="or"}, this is for ski lifts and such.
+            }},
+            new StyleEntry() { MatchOrder = 4740, Name ="trainstation", StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "c5b7ad", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MaxDrawRes = ConstantValues.zoom10DegPerPixelX / 2},
+                },
+                StyleMatchRules = new List<StyleMatchRule>()
+            {
                 new StyleMatchRule() { Key="building", Value="train_station", MatchType="or"},
-                new StyleMatchRule() { Key="aerialway", Value="station", MatchType="or"},
-                new StyleMatchRule() { Key="public_transport", Value="station", MatchType="or"},
+                new StyleMatchRule() { Key="railway", Value="station", MatchType="or"},
             }},
             new StyleEntry() { MatchOrder = 4800, Name ="raceway", StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
