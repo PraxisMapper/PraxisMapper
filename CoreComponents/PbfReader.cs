@@ -801,7 +801,7 @@ namespace PraxisCore.PbfReader
             var ms2 = new MemoryStream(blockBytes);
             var b2 = Serializer.Deserialize<Blob>(ms2);
             var ms3 = new MemoryStream(b2.zlib_data);
-            var dms2 = new ZLibStream(ms3, CompressionMode.Decompress);
+            var dms2 = new ZLibStream(ms3, CompressionMode.Decompress); //TODO: replace with zlibdotnet for performance
 
             var pulledBlock = Serializer.Deserialize<PrimitiveBlock>(dms2);
             dms2.Close(); dms2.Dispose(); ms3.Close(); ms3.Dispose(); ms2.Close(); ms2.Dispose();
