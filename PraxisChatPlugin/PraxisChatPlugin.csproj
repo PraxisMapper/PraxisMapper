@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)\PraxisMapper\bin\$(Configuration)\net9.0\plugins\$(ProjectName).dll&quot;&#xD;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).pdb&quot; &quot;$(SolutionDir)\PraxisMapper\bin\$(Configuration)\net9.0\plugins\$(ProjectName).pdb&quot;" />
+    <Exec Command="copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)\PraxisMapper\bin\$(Configuration)\net10.0\plugins\$(ProjectName).dll&quot;&#xD;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).pdb&quot; &quot;$(SolutionDir)\PraxisMapper\bin\$(Configuration)\net10.0\plugins\$(ProjectName).pdb&quot;" />
   </Target>
 
 </Project>
