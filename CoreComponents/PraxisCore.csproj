@@ -45,9 +45,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.11" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.11" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="9.0.4" />
     <PackageReference Include="OsmSharp" Version="7.0.0-pre022" />
@@ -56,7 +56,7 @@
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql.NetTopologySuite" Version="9.0.0" />
     <PackageReference Include="protobuf-net" Version="3.2.56" />
     <PackageReference Include="SkiaSharp" Version="3.119.1" />
-    <PackageReference Include="System.IO.Pipelines" Version="9.0.11" />
+    <PackageReference Include="System.IO.Pipelines" Version="10.0.0" />
   </ItemGroup>
 
 </Project>
