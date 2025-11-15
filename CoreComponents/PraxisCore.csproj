@@ -59,4 +59,8 @@
     <PackageReference Include="System.IO.Pipelines" Version="10.0.0" />
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if not exist &quot;$(SolutionDir)\PraxisMapper\bin\$(Configuration)\net10.0\plugins&quot; mkdir &quot;$(SolutionDir)\PraxisMapper\bin\$(Configuration)\net10.0\plugins&quot;" />
+  </Target>
+
 </Project>
