@@ -30,7 +30,7 @@ namespace PraxisCore
         {
             public string olc { get; set; } //PlusCode
             public double dateGenerated { get; set; } // UTC in Unix time, easier for Godot to work with.
-            public int version { get; set; } = 2; // absence/null indicates version 1.
+            public int version { get; set; } = 2; // absence/null indicates version 1. V2 added OsmId.
             public Dictionary<string, List<OfflinePlaceEntry>> entries { get; set; }
             public Dictionary<int, string> nameTable { get; set; } //id, name
         }
@@ -56,8 +56,8 @@ namespace PraxisCore
 
         public class MinOfflineData
         {
-            public string c { get; set; } //Point Center, as a pluscode? Or pixel coords? Probably pixel coords
-            public int r { get; set; }  //radius for a circle representing roughly the place, in pixels on the client image (1 Cell11 or 12)
+            public string c { get; set; } //Point Center, as pixel coords
+            public int r { get; set; }  //radius for a circle representing roughly the place, in pixels on the client image (1 Cell12)
             public int? nid { get; set; } = null; //nametable id, as regular offline data.
             public int tid { get; set; } //terrain id, which style entry this place is
 
