@@ -11,7 +11,6 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +22,11 @@ namespace PraxisCore
     // Do offline items get the privacyID, so that a client downloading new data can apply existing changes to new data correctly?
     // (That Id is the OSM ID plus type. That's the proper unique connection, and its offline so it won't expose data to other players)
     // Odds are high that Larry will use the OfflinePlaces table, as its the bulk processor app, and PraxisMapper will use Places as normal.
+
+    //May want to see if I can make a global nametable file, that assigns each word a number/ID, and then have the offline data nametable
+    //refer to that instead of saving each name separately in them. This might be better for the super-minimized entries, but I should check
+    //and see if it reduces the output size. Plus, is it smaller in text to store name as strings or actual int array? In JSON, might be string.
+    //name = "12 244 19" is 9 bytes if UTF-8 collapses to ASCII correctly, 3 int32s in memory are 12 bytes.
     public class OfflineData
     {
         static Lock zipLock = new Lock();
@@ -211,7 +215,7 @@ namespace PraxisCore
             }
         }
 
-        public static void MakeOfflineJsonFromOfflineTable(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.OfflinePlace> places = null)
+        public static void MakeOfflineJsonFromOfflineTable(string plusCode, Polygon bounds = null, bool saveToFile = true, ZipArchive inner_zip = null, List<DbTables.OfflinePlace> places = null, IEnumerable<(int, string)> nameHashes = null)
         {
             //Make offline data for PlusCode6s, repeatedly if the one given is a 4 or 2.
             if (bounds == null)
@@ -262,6 +266,30 @@ namespace PraxisCore
                         Console.WriteLine("Loading places for " + plusCode);
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetOfflinePlaces(plusCode.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell8));
+                        nameHashes = MakeNameTablePieces(places.Where(p => p.Name != null).Select(p => p.Name).ToList()).Index();
+                        var nameDict = nameHashes.ToDictionary(k => k.Item1.ToString(), v => v.Item2);
+
+                        //Write nametable to zip first.
+                        Stream nameStream;
+                        var namedata = JsonSerializer.Serialize(nameDict); //TODO: get this to output reasonably shaped data instead of nothings.
+                        var nameEntry = inner_zip.GetEntry("nametable.json");
+                        if (nameEntry != null)
+                        {
+                            nameStream = nameEntry.Open();
+                            
+                            nameStream.Position = 0;
+                            nameStream.SetLength(namedata.Length);
+                        }
+                        else
+                        {
+                            nameEntry = inner_zip.CreateEntry("nametable.json", CompressionLevel.Optimal);
+                            nameStream = nameEntry.Open();
+                        }
+                        using (var streamWriter = new StreamWriter(nameStream))
+                            streamWriter.Write(namedata);
+                        nameStream.Close();
+                        nameStream.Dispose();
+
                         //For the really big areas, if we crop it once here, should save about 3 minutes of processing later.
                         //foreach (var place in places)
                         Parallel.ForEach(places, (place) => place.ElementGeometry = place.ElementGeometry.Intersection(area));
@@ -279,7 +307,7 @@ namespace PraxisCore
                     ParallelOptions po = new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount };
                     Parallel.ForEach(ConstantValues.GetCellCombos(), po, pair =>
                     {
-                        MakeOfflineJsonFromOfflineTable(plusCode + pair, bounds, saveToFile, inner_zip, places);
+                        MakeOfflineJsonFromOfflineTable(plusCode + pair, bounds, saveToFile, inner_zip, places, nameHashes);
                     });
 
                     bool removeFile = false;
@@ -301,7 +329,7 @@ namespace PraxisCore
                         return;
 
                     foreach (var pair in ConstantValues.GetCellCombos())
-                        MakeOfflineJsonFromOfflineTable(plusCode + pair, bounds, saveToFile, inner_zip, places);
+                        MakeOfflineJsonFromOfflineTable(plusCode + pair, bounds, saveToFile, inner_zip, places, nameHashes);
                     File.AppendAllText("lastOfflineEntry.txt", "|" + plusCode);
                     return;
                 }
@@ -314,7 +342,8 @@ namespace PraxisCore
             }
 
             var sw = Stopwatch.StartNew();
-            var finalData = MakeEntriesFromOffline(plusCode, string.Join(",", styles), places);
+            //TODO: this needs to use the name hashes index.
+            var finalData = MakeEntriesFromOffline(plusCode, string.Join(",", styles), places, nameHashes);
             if (finalData == null || (finalData.nameTable == null && finalData.entries.Count == 0))
                 return;
 
@@ -523,7 +552,7 @@ namespace PraxisCore
         }
 
         //NOTE: Take any optimizations made here, and apply to the MakeEntries function so they stay on par.
-        public static OfflineDataV2 MakeEntriesFromOffline(string plusCode, string stylesToUse, List<DbTables.OfflinePlace> places = null)
+        public static OfflineDataV2 MakeEntriesFromOffline(string plusCode, string stylesToUse, List<DbTables.OfflinePlace> places = null, IEnumerable<(int, string)> nameData = null)
         {
             var counter = 1;
             try
@@ -545,6 +574,7 @@ namespace PraxisCore
 
                 var finalData = new OfflineDataV2();
                 finalData.olc = plusCode;
+                finalData.version = 3;
                 finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
                 foreach (var style in styles)
                 {
@@ -584,7 +614,17 @@ namespace PraxisCore
                                 continue;
 
                             var offline = new OfflinePlaceEntry();
-                            offline.nid = nameID;
+                            //offline.nid = nameID;
+                            if (!string.IsNullOrWhiteSpace(place.Name))
+                            {
+                                var nameBits = place.Name.Split(' ');
+                                var name = "";
+
+                                foreach(var nb in nameBits)
+                                    name += nameData.First(n => n.Item2 == nb).Item1 + " ";
+
+                                offline.name = name.Trim();
+                            }
                             offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
 
                             offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
@@ -609,7 +649,7 @@ namespace PraxisCore
                 if (finalData.entries.Count == 0)
                     return null;
 
-                finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
+                //finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
 
                 finalData.dateGenerated = DateTime.UtcNow.ToUnixTime();
                 return finalData;
@@ -1140,5 +1180,41 @@ namespace PraxisCore
 
             return bigger;
         }
+
+        public static HashSet<string> MakeNameTablePieces(List<string> allNames)
+        {
+            var db = new PraxisContext();
+
+            var nameHashes = new HashSet<string>();
+            foreach(var name in allNames)
+                foreach(var piece in name.Split(' '))
+                    nameHashes.Add(piece);
+
+            return nameHashes;
+        }
+
+        public static string GetMinimizedName(string name, ref HashSet<string> nameHashes)
+        {
+            var parts = name.Split(' ');
+            for(int i = 0; i <= parts.Count(); i++)
+            {
+                parts[i] = nameHashes.Index().First(n => n.Item == parts[i]).Index.ToString();
+            }
+
+            return String.Join(' ', parts);
+        }
     }
+
+
+    public class IndexEntry
+    {
+        public int Index { get; set; }
+        public string Name { get; set; }
+
+        public static implicit operator IndexEntry((int, string) tuple)
+        {
+            return new IndexEntry() { Index = tuple.Item1, Name = tuple.Item2 };
+        }
+    }
+
 }

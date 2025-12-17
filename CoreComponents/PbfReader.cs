@@ -1,9 +1,7 @@
-﻿using Google.OpenLocationCode;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using OsmSharp.Complete;
 using OsmSharp.Geo;
-using OsmSharp.IO.PBF;
 using OsmSharp.Tags;
 using PraxisCore.Support;
 using ProtoBuf;
@@ -475,7 +473,7 @@ namespace PraxisCore.PbfReader
                     tempTags.Clear();
                 }
                 return true;
-                
+
             }
             else if (itemType == 3)
             {

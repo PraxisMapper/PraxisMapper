@@ -108,6 +108,13 @@ namespace Larry
                 ConvertPBFtoPMD();
             }
 
+            if (args.Any(a => a == "-rebuildIndexes"))
+            {
+                using var db = new PraxisContext();
+                db.DropIndexes();
+                db.RecreateIndexes();
+            }
+
             if (args.Any(a => a.StartsWith("-addOneElement:")))
             {
                 var vals = args.First(a => a.StartsWith("-addOneElement:")).Split(':');

@@ -2,7 +2,7 @@
   "profiles": {
     "Larry": {
       "commandName": "Project",
-      "commandLineArgs": "-ZcreateDB -ZresetStyles -ZresetPbf -ZresetGeomData -ZmakeServerDb -processPbfs -ZmakePosterImage  -ZloadProcessedData -ZupdateDatabase -ZremoveDupes -  -ZextractBigAreas -ZpopulateEmptyArea: -ZfindServerBounds  -ZfixAreaSizes -ZdrawOneImage:86HWHH -ZautoCreateMapTiles -ZsetEnvValues -ZpwdSpeedTest"
+      "commandLineArgs": "-ZcreateDB -ZresetStyles -ZresetPbf -ZresetGeomData -ZmakeServerDb -ZmakePosterImage -ZrebuildIndexes -ZmakeOfflineFiles  -ZloadProcessedData -ZupdateDatabase -ZremoveDupes -  -ZextractBigAreas -ZpopulateEmptyArea: -ZfindServerBounds  -ZfixAreaSizes -ZdrawOneImage:86HWHH -ZautoCreateMapTiles -ZsetEnvValues -ZpwdSpeedTest"
     }
   }
 }
