@@ -266,12 +266,13 @@ namespace PraxisCore
                         Console.WriteLine("Loading places for " + plusCode);
                         Stopwatch load = Stopwatch.StartNew();
                         places = Place.GetOfflinePlaces(plusCode.ToGeoArea().PadGeoArea(ConstantValues.resolutionCell8));
-                        nameHashes = MakeNameTablePieces(places.Where(p => p.Name != null).Select(p => p.Name).ToList()).Index();
-                        var nameDict = nameHashes.ToDictionary(k => k.Item1.ToString(), v => v.Item2);
+                        var indexedNames = places.Select(p => p.Name).Distinct().Index();
+                        var nameDict = indexedNames.ToDictionary(k => k.Index.ToString(), v => v.Item);
+                        nameHashes = indexedNames;
 
                         //Write nametable to zip first.
                         Stream nameStream;
-                        var namedata = JsonSerializer.Serialize(nameDict); //TODO: get this to output reasonably shaped data instead of nothings.
+                        var namedata = JsonSerializer.Serialize(nameDict);
                         var nameEntry = inner_zip.GetEntry("nametable.json");
                         if (nameEntry != null)
                         {
@@ -566,28 +567,22 @@ namespace PraxisCore
                 //will make larger files but the output would be a closer match to the server's images.
 
                 var min = cell.Min;
-                Dictionary<string, int> nametable = new Dictionary<string, int>(); //name, id
-                var nameIdCounter = 0;
-
                 if (!PraxisCore.Place.DoOfflinePlacesExist(cell, places))
                     return null;
 
+                var nameLookup = nameData.Select(d => d.Item2).ToList();
                 var finalData = new OfflineDataV2();
                 finalData.olc = plusCode;
                 finalData.version = 3;
                 finalData.entries = new Dictionary<string, List<OfflinePlaceEntry>>();
-                foreach (var style in styles)
+                foreach (var style in styles) //TODO: The offline table only supports 1 style, this needs to be reworked if I want this to actually produce output from it with mulitple matching styles.
                 {
                     var placeData = PraxisCore.Place.GetOfflinePlaces(cell, source: places);
 
                     if (placeData.Count == 0)
                         continue;
                     ConcurrentBag<OfflinePlaceEntry> entries = new ConcurrentBag<OfflinePlaceEntry>();
-                    var names = placeData.Where(p => !string.IsNullOrWhiteSpace(p.Name) && !nametable.ContainsKey(p.Name)).Select(p => p.Name).Distinct();
-                    foreach (var name in names)
-                        nametable.Add(name, ++nameIdCounter);
 
-                    //foreach (var place in placeData)
                     Parallel.ForEach(placeData, (place) => //we save data and re-order stuff after.
                     {
                         var sizeOrder = place.DrawSizeHint;
@@ -598,9 +593,10 @@ namespace PraxisCore
                             return; // continue; //Probably an element on the border thats getting pulled in by buffer.
 
                         int nameID = 0;
+
                         if (place.Name != null)
                         {
-                            nametable.TryGetValue(place.Name, out nameID);
+                            nameID = nameLookup.IndexOf(place.Name);
                         }
 
                         var styleEntry = TagParser.allStyleGroups[style][place.StyleName];
@@ -614,17 +610,8 @@ namespace PraxisCore
                                 continue;
 
                             var offline = new OfflinePlaceEntry();
-                            //offline.nid = nameID;
-                            if (!string.IsNullOrWhiteSpace(place.Name))
-                            {
-                                var nameBits = place.Name.Split(' ');
-                                var name = "";
-
-                                foreach(var nb in nameBits)
-                                    name += nameData.First(n => n.Item2 == nb).Item1 + " ";
-
-                                offline.name = name.Trim();
-                            }
+                            if (nameID > 0)
+                                offline.nid = nameID;
                             offline.tid = styleEntry.MatchOrder; //Client will need to know what this ID means from the offline style endpoint output.
 
                             offline.gt = geo.GeometryType == "Point" ? 1 : geo.GeometryType == "LineString" ? 2 : styleEntry.PaintOperations.All(p => p.FillOrStroke == "stroke") ? 2 : 3;
@@ -649,8 +636,6 @@ namespace PraxisCore
                 if (finalData.entries.Count == 0)
                     return null;
 
-                //finalData.nameTable = nametable.Count > 0 ? nametable.ToDictionary(k => k.Value, v => v.Key) : null;
-
                 finalData.dateGenerated = DateTime.UtcNow.ToUnixTime();
                 return finalData;
             }
@@ -658,7 +643,7 @@ namespace PraxisCore
             {
                 counter++;
                 System.Threading.Thread.Sleep(1000 * counter);
-                return MakeEntriesFromOffline(plusCode, stylesToUse, places);
+                return MakeEntriesFromOffline(plusCode, stylesToUse, places, nameData);
             }
             catch (Exception ex)
             {

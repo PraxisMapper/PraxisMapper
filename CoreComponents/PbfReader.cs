@@ -799,7 +799,7 @@ namespace PraxisCore.PbfReader
             var ms2 = new MemoryStream(blockBytes);
             var b2 = Serializer.Deserialize<Blob>(ms2);
             var ms3 = new MemoryStream(b2.zlib_data);
-            var dms2 = new ZLibStream(ms3, CompressionMode.Decompress); //TODO: replace with zlibdotnet for performance
+            var dms2 = new ZLibStream(ms3, CompressionMode.Decompress);
 
             var pulledBlock = Serializer.Deserialize<PrimitiveBlock>(dms2);
             dms2.Close(); dms2.Dispose(); ms3.Close(); ms3.Dispose(); ms2.Close(); ms2.Dispose();
@@ -2244,6 +2244,14 @@ namespace PraxisCore.PbfReader
             //This should loop through styleSets, and return the first match's set and style.
             //Assuming that items won't get matched across mulitple style sets.
             return [];
+        }
+
+        public void PerfTestZlibOptions()
+        {
+            //TODO: file stuff
+
+
+
         }
     }
 }
