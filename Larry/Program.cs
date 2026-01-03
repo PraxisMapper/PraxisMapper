@@ -175,7 +175,7 @@ namespace Larry
                 OfflineData.simplifyRes = config["offlineSimplifyResolution"].ToDouble();
                 OfflineData.xRes = config["offlineXPixelResolution"].ToDouble();
                 OfflineData.yRes = config["offlineYPixelResolution"].ToDouble();
-                OfflineData.styles = config["offlineStyleSets"].Split(",");
+                OfflineData.styles = config["TagParserStyleSet"].Split(",");
                 OfflineData.filePath = config["PbfFolder"];
 
                 OfflineData.MakeOfflineJsonFromOfflineTable(""); //Larry should prefer this, since thats its purpose.
