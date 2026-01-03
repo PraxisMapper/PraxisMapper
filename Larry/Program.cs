@@ -478,7 +478,7 @@ namespace Larry
             //NOTE: this requires the WGS84 version of the polygons. the Mercator version is UTM, not the Mercator you saw in school.
             Log.WriteLog("Reading water polygon data from " + shapePath);
             Stopwatch sw = Stopwatch.StartNew();
-            string fileBaseName = config["PbfFolder"] + "coastlines.pmd";
+            string fileBaseName = config["PbfFolder"] + "oceanData.pmd";
             EGIS.ShapeFileLib.ShapeFile sf = new EGIS.ShapeFileLib.ShapeFile(shapePath);
             var recordCount = sf.RecordCount;
             List<Polygon> polygons = new List<Polygon>(recordCount);
@@ -499,8 +499,8 @@ namespace Larry
             polygons.AddRange(notShrinking);
             polygons.AddRange(resultGeo.Geometries.Select(g => (Polygon)g).ToList());
 
-            Log.WriteLog("Saving processed shaped to PMD file...");
-            var outputData = new PlaceExport("oceanData.pmd");
+            Log.WriteLog("Saving processed shapes to PMD file...");
+            var outputData = new PlaceExport(fileBaseName);
             int c = 1;
             //NEXT: save to a place item.
             foreach (var poly in polygons)
