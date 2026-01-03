@@ -102,6 +102,13 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() { Key = "admin_level", Value = "11", MatchType = "equals" }
                 }
             },
+            new StyleEntry() { MatchOrder = 11, Name ="locality",  StyleSet = "adminBoundsFilled",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "33333344", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 9 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "place", Value = "locality", MatchType = "equals" },
+            }},
             new StyleEntry() { MatchOrder = 9999, Name ="background",  StyleSet = "adminBoundsFilled",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "00F2EFE9", FillOrStroke = "fill", LayerId = 101 }

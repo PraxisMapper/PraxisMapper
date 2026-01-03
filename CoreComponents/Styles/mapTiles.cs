@@ -405,14 +405,6 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
             }},
-            //Transparents: Explicitly things that don't help when drawn in one color.
-            new StyleEntry() { MatchOrder = 2500, Name ="donotdraw",  StyleSet = "mapTiles",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
-            }},
             new StyleEntry() { MatchOrder = 2600, Name ="greyFill",  StyleSet = "mapTiles",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "AAAAAA", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
@@ -731,6 +723,13 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>()
                 {
                     new StyleMatchRule() { Key="landuse", Value="allotments", MatchType="any"},
+            }},
+            new StyleEntry() { MatchOrder = 5900, Name ="islet",  StyleSet = "mapTiles",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "f2eef9", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "place", Value = "islet", MatchType = "equals" },
             }},
 
 

@@ -259,7 +259,8 @@ namespace PraxisCore.Styles
                     new StylePaint() { HtmlColorCode = "B8A89C", FillOrStroke = "stroke", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 99 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} },
+                    new StyleMatchRule() { Key = "building", Value = "*", MatchType = "equals" }} 
+            },
             new StyleEntry() { MatchOrder = 790, Name ="bgwater", StyleSet = "offline",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "aad3df", FillOrStroke = "fill", LineWidthDegrees=0.0000625F, LinePattern= "solid", LayerId = 101 }
@@ -276,7 +277,7 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() {Key = "waterway", Value ="*", MatchType="or" },
                     new StyleMatchRule() {Key = "landuse", Value ="basin", MatchType="or" },
                     new StyleMatchRule() {Key = "leisure", Value ="swimming_pool", MatchType="or" }, 
-                    new StyleMatchRule() {Key = "place", Value ="sea", MatchType="or" }, //stupid Labrador sea value.
+                    new StyleMatchRule() {Key = "place", Value ="sea", MatchType="or" }, //stupid Labrador sea value, single exception to the rest of this.
                 }},
             new StyleEntry() {IsGameElement = true,  MatchOrder = 900, Name ="wetland", StyleSet = "offline",
                 PaintOperations = new List<StylePaint>() {
@@ -334,6 +335,7 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() {Key="highway", Value="path|bridleway|cycleway|footway|living_street", MatchType="any"},
                     new StyleMatchRule() { Key="footway", Value="sidewalk|crossing", MatchType="not"}
             }},
+            //1600 block: admin bounds and localities (named places/areas/things that people don't live in)
             new StyleEntry() { MatchOrder = 1601, Name ="country",  StyleSet = "offline",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "E31010", FillOrStroke = "fill", StaticColorFromName = true, LayerId = 70 }
@@ -425,6 +427,13 @@ namespace PraxisCore.Styles
                     new StyleMatchRule() { Key = "admin_level", Value = "11", MatchType = "equals" }
                 }
             },
+            new StyleEntry() { MatchOrder = 1611, Name ="locality",  StyleSet = "offline",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 60 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "place", Value = "locality", MatchType = "equals" },
+            }},
             new StyleEntry() { MatchOrder = 1700, Name ="parking", StyleSet = "offline",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "EEEEEE", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100, MinDrawRes = ConstantValues.zoom12DegPerPixelX}
@@ -480,22 +489,14 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>() {
                     new StyleMatchRule() { Key = "highway", Value = "pedestrian", MatchType = "equals" },
             }},
-            //Transparent: we don't usually want to draw census boundaries
-            new StyleEntry() { MatchOrder = 2400, Name ="censusbounds",  StyleSet = "offline",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
-            }},
-            //Transparents: Explicitly things that don't help when drawn in one color.
-            new StyleEntry() { MatchOrder = 2500, Name ="donotdraw",  StyleSet = "offline",
-                PaintOperations = new List<StylePaint>() {
-                    new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
-                },
-                StyleMatchRules = new List<StyleMatchRule>() {
-                    new StyleMatchRule() { Key = "place", Value = "locality|islet", MatchType = "any" },
-            }},
+            //Transparent: we don't usually want to draw census boundaries, so don't save those to offline data.
+            //new StyleEntry() { MatchOrder = 2400, Name ="censusbounds",  StyleSet = "offline",
+                //PaintOperations = new List<StylePaint>() {
+                    //new StylePaint() { HtmlColorCode = "00000000", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
+                //},
+                //StyleMatchRules = new List<StyleMatchRule>() {
+                    //new StyleMatchRule() { Key = "boundary", Value = "census", MatchType = "equals" },
+            //}},            
             new StyleEntry() { MatchOrder = 2600, Name ="greyFill",  StyleSet = "offline",
                 PaintOperations = new List<StylePaint>() {
                     new StylePaint() { HtmlColorCode = "AAAAAA", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
@@ -814,6 +815,13 @@ namespace PraxisCore.Styles
                 StyleMatchRules = new List<StyleMatchRule>()
                 {
                     new StyleMatchRule() { Key="landuse", Value="allotments", MatchType="any"},
+            }},
+            new StyleEntry() { MatchOrder = 5900, Name ="islet",  StyleSet = "offline",
+                PaintOperations = new List<StylePaint>() {
+                    new StylePaint() { HtmlColorCode = "f2eef9", FillOrStroke = "fill", LineWidthDegrees=0.00000625F, LinePattern= "solid", LayerId = 100 }
+                },
+                StyleMatchRules = new List<StyleMatchRule>() {
+                    new StyleMatchRule() { Key = "place", Value = "islet", MatchType = "equals" },
             }},
 
 
