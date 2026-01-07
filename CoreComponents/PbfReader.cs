@@ -14,7 +14,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -49,6 +48,7 @@ namespace PraxisCore.PbfReader
         public string[] styleSets = ["mapTiles"];
         public bool keepIndexFiles = true;
         public bool splitByStyleSet = false;
+        public int processOnlyBlock = -1;
 
         public string outputPath = "";
         public string filenameHeader = "";
@@ -170,6 +170,12 @@ namespace PraxisCore.PbfReader
             //Moved these out of the foreach loop so we dont declare them new every pass.
             var sw = Stopwatch.StartNew();
             int thisBlockId = 0;
+
+            if (processOnlyBlock > -1)
+            {
+                nextBlockId = processOnlyBlock;
+                Bcount = processOnlyBlock + 1;
+            }
             long groupMin = 0;
             long groupMax = 0;
             PrimitiveGroup group;
@@ -264,16 +270,21 @@ namespace PraxisCore.PbfReader
                             catch (Exception ex)
                             {
                                 var msg = ex.Message;
-                                Log.WriteLog("Error saving Block " + block + " Group " + groupId + ": " + ex.Message);
-                                //TODO: save this in a recoverable way and apply it back to the DB later.
-                                //This occasionally throws an error about a named double somewhere, that makes no sense to me.
-                                try
+                                Log.WriteLog("Error saving Block " + block + " Group " + groupId + ": " + ex.Message + ", running second-chance saves");
+
+                                using var db2 = new PraxisContext();
+                                db2.ChangeTracker.AutoDetectChangesEnabled = false;
+                                foreach (var p in processedO)
                                 {
-                                    var jsonData = JsonSerializer.Serialize(processedO);
-                                    File.WriteAllText("block-" + block + "-group-" + groupId + ".json", jsonData);
-                                }
-                                catch {
-                                    Log.WriteLog("Failed to save to json. Block not loaded to DB.");
+                                    try
+                                    {
+                                        db2.OfflinePlaces.Add(p);
+                                    }
+                                    catch (Exception ex2)
+                                    {
+                                        Log.WriteLog("Could not save place " + p.Name + " (" + p.SourceItemType + ", OSMID " + p.SourceItemID + ") on second-chance");
+                                    }
+
                                 }
                             }
                         }
@@ -1083,7 +1094,7 @@ namespace PraxisCore.PbfReader
         /// <param name="block">the block of Nodes to search through</param>
         /// <param name="ignoreUnmatched">if true, skip nodes that have tags that only match the default TaParser style.</param>
         /// <returns>a list of Nodes with tags, which may have a length of 0.</returns>
-        private List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
+        public List<OsmSharp.Node> GetTaggedNodesFromBlock(PrimitiveBlock block, bool ignoreUnmatched = false)
         {
             List<OsmSharp.Node> taggedNodes = new List<OsmSharp.Node>(block.primitivegroup.Sum(p => p.dense.keys_vals.Count) - block.primitivegroup.Sum(p => p.dense.id.Count) / 2); //precise count
             for (int b = 0; b < block.primitivegroup.Count; b++)
@@ -1095,9 +1106,9 @@ namespace PraxisCore.PbfReader
                 if (dense.keys_vals.Count == dense.id.Count)
                     continue;
 
-                var granularity = block.granularity;
-                var lat_offset = block.lat_offset;
-                var lon_offset = block.lon_offset;
+                var granularity = block.granularity * .000000001;
+                var lat_offset = block.lat_offset * .000000001;
+                var lon_offset = block.lon_offset * .000000001;
                 var stringData = block.stringtable.s;
 
                 //sort out tags ahead of time.
@@ -1145,8 +1156,8 @@ namespace PraxisCore.PbfReader
 
                     OsmSharp.Node n = new OsmSharp.Node();
                     n.Id = nodeId;
-                    n.Latitude = DecodeLatLon(lat, lat_offset, granularity);
-                    n.Longitude = DecodeLatLon(lon, lon_offset, granularity);
+                    n.Latitude = lat_offset + (granularity * lat);
+                    n.Longitude = lon_offset + (granularity * lon);
                     n.Tags = tc;
 
                     //if bounds checking, drop nodes that aren't needed.
@@ -1173,9 +1184,9 @@ namespace PraxisCore.PbfReader
 
             var block = GetBlock(blockAndGroup.blockId);
             var group = block.primitivegroup[blockAndGroup.groupId].dense;
-            var granularity = block.granularity;
-            var lat_offset = block.lat_offset;
-            var lon_offset = block.lon_offset;
+            var granularity = block.granularity * .000000001;
+            var lat_offset = block.lat_offset * .000000001;
+            var lon_offset = block.lon_offset * .000000001;
 
             int index = -1;
             long nodeCounter = 0;
@@ -1197,8 +1208,8 @@ namespace PraxisCore.PbfReader
                 {
                     OsmSharp.Node filled = new OsmSharp.Node();
                     filled.Id = nodeCounter;
-                    filled.Latitude = DecodeLatLon(latDelta, lat_offset, granularity);
-                    filled.Longitude = DecodeLatLon(lonDelta, lon_offset, granularity);
+                    filled.Latitude = lat_offset + (granularity * latDelta);
+                    filled.Longitude = lon_offset + (granularity * lonDelta);
                     results.Add(nodeCounter, filled);
                     arrayIndex++;
                     if (arrayIndex == nodeIds.Length)
@@ -1511,11 +1522,11 @@ namespace PraxisCore.PbfReader
         /// <param name="blockOffset">the offset for the block currently loaded</param>
         /// <param name="blockGranularity">the granularity value of the block data is loaded from</param>
         /// <returns>a double represeting the lat or lon value for the given dense values</returns>
-        private static double DecodeLatLon(long valueOffset, long blockOffset, long blockGranularity) //TODO: good candidate for [MethodImpl(MethodImplOptions.AggressiveInlining)]?
-        {
-            return .000000001 * (blockOffset + (blockGranularity * valueOffset));
-        }
-        //end OsmSharp copied functions.
+        //public static double DecodeLatLon(long valueOffset, long blockOffset, long blockGranularity)
+        //{
+            //NOTE: this is the original math, I pre-multiply these 2 values per block and do the math inline now, its slightly faster that way.
+            //return .000000001 * (blockOffset + (blockGranularity * valueOffset));
+        //}
 
         private void SaveIndexInfo(List<IndexInfo> index)
         {
@@ -1977,9 +1988,9 @@ namespace PraxisCore.PbfReader
                 if (dense.keys_vals.Count == dense.id.Count)
                     continue;
 
-                var granularity = block.granularity;
-                var lat_offset = block.lat_offset;
-                var lon_offset = block.lon_offset;
+                var granularity = block.granularity * .000000001;
+                var lat_offset = block.lat_offset * .000000001;
+                var lon_offset = block.lon_offset * .000000001;
                 var stringData = block.stringtable.s;
 
                 //sort out tags ahead of time.
@@ -2025,7 +2036,7 @@ namespace PraxisCore.PbfReader
                             continue;
                     }
 
-                    Coordinate c = new Coordinate(DecodeLatLon(lon, lon_offset, granularity), DecodeLatLon(lat, lat_offset, granularity));
+                    Coordinate c = new Coordinate(lon_offset + (granularity * lon), lat_offset + (granularity * lat));
                     FundamentalOsm n = new FundamentalOsm([[c]], null, tc, 1, nodeId);
 
                     //if bounds checking, drop nodes that aren't needed.
