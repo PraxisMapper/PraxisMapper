@@ -61,9 +61,9 @@ namespace PraxisCore.PbfReader
         FileStream fs; // The input file. Output files are either WriteAllText or their own streamwriter.
 
         //new entries for indexing.
-        static List<IndexInfo> nodeIndex = new List<IndexInfo>();
-        static List<IndexInfo> wayIndex = new List<IndexInfo>();
-        static List<IndexInfo> relationIndex = new List<IndexInfo>();
+        List<IndexInfo> nodeIndex = new List<IndexInfo>();
+        List<IndexInfo> wayIndex = new List<IndexInfo>();
+        List<IndexInfo> relationIndex = new List<IndexInfo>();
 
         Dictionary<long, long> blockPositions = new Dictionary<long, long>(initialCapacity);
         Dictionary<long, int> blockSizes = new Dictionary<long, int>(initialCapacity);
@@ -263,11 +263,18 @@ namespace PraxisCore.PbfReader
                             }
                             catch (Exception ex)
                             {
+                                var msg = ex.Message;
                                 Log.WriteLog("Error saving Block " + block + " Group " + groupId + ": " + ex.Message);
                                 //TODO: save this in a recoverable way and apply it back to the DB later.
                                 //This occasionally throws an error about a named double somewhere, that makes no sense to me.
-                                var jsonData = JsonSerializer.Serialize(processedO);
-                                File.WriteAllText("block-" + block + "-group-" + groupId + ".json", jsonData);
+                                try
+                                {
+                                    var jsonData = JsonSerializer.Serialize(processedO);
+                                    File.WriteAllText("block-" + block + "-group-" + groupId + ".json", jsonData);
+                                }
+                                catch {
+                                    Log.WriteLog("Failed to save to json. Block not loaded to DB.");
+                                }
                             }
                         }
                         else
@@ -731,7 +738,7 @@ namespace PraxisCore.PbfReader
             SplitIndexData(indexes);
         }
 
-        private static void SplitIndexData(List<IndexInfo> indexes)
+        private void SplitIndexData(List<IndexInfo> indexes)
         {
             nodeIndex = indexes.Where(i => i.groupType == 1).OrderBy(i => i.minId).ToList();
             wayIndex = indexes.Where(i => i.groupType == 2).OrderBy(i => i.minId).ToList();
