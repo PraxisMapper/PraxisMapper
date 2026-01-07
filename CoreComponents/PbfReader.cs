@@ -145,6 +145,7 @@ namespace PraxisCore.PbfReader
 
             var dbS = new PraxisContext();
             var skipExisting = !dbS.Places.Any();
+            dbS.Database.ExecuteSqlRaw("SET GLOBAL max_allowed_packet = 67108864;"); //Ups the size of allowed packets to reduce errors from big blocks.
             dbS.Dispose();
 
             styleSets = styleSet.Split(",");
@@ -273,16 +274,19 @@ namespace PraxisCore.PbfReader
                                 Log.WriteLog("Error saving Block " + block + " Group " + groupId + ": " + ex.Message + ", running second-chance saves");
 
                                 using var db2 = new PraxisContext();
-                                db2.ChangeTracker.AutoDetectChangesEnabled = false;
+                                //db2.ChangeTracker.AutoDetectChangesEnabled = false;
                                 foreach (var p in processedO)
                                 {
                                     try
                                     {
                                         db2.OfflinePlaces.Add(p);
+                                        db2.SaveChanges();
                                     }
                                     catch (Exception ex2)
                                     {
-                                        Log.WriteLog("Could not save place " + p.Name + " (" + p.SourceItemType + ", OSMID " + p.SourceItemID + ") on second-chance");
+                                        while (ex2.InnerException != null)
+                                            ex2 = ex2.InnerException;
+                                        Log.WriteLog("Could not save place " + p.Name + " (" + p.SourceItemType + ", OSMID " + p.SourceItemID + ") on second-chance:" + ex.Message);
                                     }
 
                                 }

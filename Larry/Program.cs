@@ -95,6 +95,35 @@ namespace Larry
                 Log.WriteLog("Server setup complete in " + sw.Elapsed);
             }
 
+            if (args.Any(a => a.StartsWith("-processOneBlock:")))
+            {
+                var arg = args.First(a => a.StartsWith("-processOneBlock:"));
+                var blockid = arg.Split(":")[1].ToInt();
+                List<string> filenames = System.IO.Directory.EnumerateFiles(config["PbfFolder"], "*.pbf").ToList();
+                var file = filenames.First();
+
+                Log.WriteLog("Loading " + file + " at " + DateTime.Now);
+                PbfReader r = new PbfReader();
+                r.processOnlyBlock = blockid;
+                r.outputPath = config["PbfFolder"];
+                r.styleSet = config["TagParserStyleSet"];
+                r.processingMode = config["processingMode"]; // "normal" and "center" and "minimize" allowed
+                                                             //r.onlyMatchedAreas = config["OnlyTaggedAreas"] == "True";
+
+                if (config["ResourceUse"] == "low")
+                {
+                    r.lowResourceMode = true;
+                }
+                else if (config["ResourceUse"] == "high")
+                {
+                    r.keepAllBlocksInRam = true; //Faster performance, but files use vastly more RAM than they do HD space. 200MB file = ~6GB total RAM last I checked.
+                }
+                r.ProcessFileV2(file, long.Parse(config["UseOneRelationID"]));
+                File.Move(file, file + "done");
+
+            }
+
+
             if (args.Any(a => a == "-resetStyles"))
             {
                 using var db = new PraxisContext();
