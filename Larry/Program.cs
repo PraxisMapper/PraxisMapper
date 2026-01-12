@@ -798,7 +798,7 @@ namespace Larry
             var tnfO = db.OfflinePlaces.FirstOrDefault(p => p.SourceItemID == 6535292 && p.SourceItemType == 3);
             if (tnfO != null)
             {
-                var newPlaces2 = ((MultiPolygon)tnfO.ElementGeometry).Select(p => new DbTables.OfflinePlace() { ElementGeometry = p, Name = tnfO.Name, SourceItemID = tnfO.SourceItemID, SourceItemType = tnfO.SourceItemType, StyleName = tnfO.StyleName  });
+                var newPlaces2 = ((MultiPolygon)tnfO.ElementGeometry).Select(p => new DbTables.OfflinePlace() { ElementGeometry = p, Name = tnfO.Name, SourceItemID = tnfO.SourceItemID, SourceItemType = tnfO.SourceItemType, StyleName = tnfO.StyleName });
                 foreach (var np in newPlaces2)
                     np.DrawSizeHint = GeometrySupport.CalculateDrawSizeHint(np.ElementGeometry, "mapTiles", np.StyleName);
 
@@ -860,7 +860,7 @@ namespace Larry
                 var finalEntries = new Dictionary<string, OfflineData.OfflineDataV2>();
                 foreach (var folder in folders)
                 {
-                    var subPath = folder + "\\" + zip.Substring(0,2) + "\\" + zip;
+                    var subPath = folder + "\\" + zip.Substring(0, 2) + "\\" + zip;
                     if (File.Exists(subPath))
                     {
                         FileStream filestream = null;
@@ -893,7 +893,7 @@ namespace Larry
                                 finalEntries.Add(entry.Name, dataC);
                             }
                         }
-                        catch(Exception ex)
+                        catch (Exception ex)
                         {
                             Log.WriteLog("File " + subPath + " failed to read and merge, zip probably corrupt");
                         }
@@ -986,7 +986,8 @@ namespace Larry
                 var lat = data[7];
                 var radius = data[8]; //assuming this is meters, not feet.
 
-                var place = new DbTables.Place() {
+                var place = new DbTables.Place()
+                {
                     SourceItemID = counter,
                     SourceItemType = 2, //its a way now, not a point.
                     //DrawSizeHint = GetDrawSizeHint(),

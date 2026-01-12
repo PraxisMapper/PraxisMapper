@@ -682,6 +682,8 @@ namespace PraxisCore
                     {
                         splitPoly = new GeoArea(southEdge, lastWest, northEdge, point).ToPolygon();
                         subPoly = p.Intersection(splitPoly);
+                        if (subPoly.IsEmpty)
+                            continue;
 
                         //Still need to check that we have reasonable geometry here.
                         if (subPoly.GeometryType == "Polygon")
@@ -780,7 +782,6 @@ namespace PraxisCore
                     {
                         MakeMinimizedOfflineData(plusCode + pair, bounds, saveToFile, inner_zip, places);
                     });
-
                     bool removeFile = false;
                     if (inner_zip.Entries.Count == 0)
                         removeFile = true;
@@ -827,6 +828,7 @@ namespace PraxisCore
                         entryStream = entry.Open();
                         OfflineDataV2Min existingData = JsonSerializer.Deserialize<OfflineDataV2Min>(entryStream);
                         finalData = MergeMinimumOfflineFiles(finalData, existingData);
+                        data = JsonSerializer.Serialize(finalData, jso);
                         entryStream.Position = 0;
                     }
                     else
