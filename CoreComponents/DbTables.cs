@@ -102,7 +102,7 @@ namespace PraxisCore {
             /// <summary>
             /// The width to draw the outline, in degrees. For Points, this is the diameter of the circle drawn.
             /// </summary>
-            public float LineWidthDegrees { get; set; } 
+            public float LineWidthDegrees { get; set; } = (float)ConstantValues.maptileLineWidthBase;
             public string LinePattern { get; set; } //If 'solid' or blank, solid line. If not, split string into float[] on |
             public string FileName { get; set; } //A path to an image file that will be used as a repeating pattern. Null for solid colors.
             public double MinDrawRes { get; set; } = 0;//skip drawing this item if  resPerPixelX is below this value. (what doesn't draw zoomed in on OSM? name text?

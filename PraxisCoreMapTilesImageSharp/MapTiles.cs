@@ -1,7 +1,6 @@
 ﻿using Google.OpenLocationCode;
 using NetTopologySuite.Geometries;
 using PraxisCore.Support;
-using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing;
 using SixLabors.ImageSharp.Drawing.Processing;
@@ -87,7 +86,7 @@ namespace PraxisCore
             Pen p;
 
             if (String.IsNullOrWhiteSpace(tpe.LinePattern) || tpe.LinePattern == "solid")
-                p = new SolidPen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX);
+                p = new SolidPen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : (float)Math.Max(ConstantValues.maptileLineWidthBase, tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX));
             else {
                 float[] linesAndGaps = tpe.LinePattern.Split('|').Select(t => float.Parse(t)).ToArray();
                 p = new PatternPen(Rgba32.ParseHex(htmlColor), tpe.FixedWidth != 0 ? tpe.FixedWidth : tpe.LineWidthDegrees * (float)info.pixelsPerDegreeX, linesAndGaps);
@@ -408,6 +407,12 @@ namespace PraxisCore
         public static SixLabors.ImageSharp.PointF PointToPointF(Geometry place, GeoArea drawingArea, double resolutionX, double resolutionY) {
             var coord = place.Coordinate;
             return new SixLabors.ImageSharp.PointF((float)((coord.X - drawingArea.WestLongitude) * (1 / resolutionX)), (float)((coord.Y - drawingArea.SouthLatitude) * (1 / resolutionY)));
+        }
+
+        public byte[] DrawOfflineArea(ImageStats stats, List<OfflineData.OfflineDataV2> drawnItems = null, string styleSet = "offline", string skipType = null)
+        {
+            return null;
+            //throw new NotImplementedException();
         }
     }
 }

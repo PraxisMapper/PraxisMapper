@@ -13,7 +13,7 @@ namespace PraxisCore.Styles
         public static List<StyleEntry> style = new List<StyleEntry>()
         {
             new StyleEntry() { MatchOrder = 1, Name ="1",  StyleSet = "importAll",
-                PaintOperations = new List<StylePaint>() { //Making linewidthdegrees = 0 means it will always draw as 1 px wide, at least with SkiaSharp
+                PaintOperations = new List<StylePaint>() { //Making linewidthdegrees = 0 means it will always draw as 1 px wide, at least with SkiaSharp. ImageSharp doesn't like that, though.
                     new StylePaint() { HtmlColorCode = "000000", FillOrStroke = "stroke", LineWidthDegrees=0, LinePattern= "solid", LayerId = 100 }
                 },
                 StyleMatchRules = new List<StyleMatchRule>() {
