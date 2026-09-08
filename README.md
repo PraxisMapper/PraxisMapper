@@ -7,6 +7,8 @@ The Godot 4.1+ components are available <a href="https://github.com/PraxisMapper
 
 Or, a fully function Godot 4.2 example can be found at <a href="https://github.com/PraxisMapper/WeekendSpaceProto">Weekend Space Command (Prototype)</a> to get a functional framework with global, minimized data.
 
+# Retired
+I have shelved this project as of September 2026. When I started on this in August of 2020, I wanted to learn a bunch of new tech and makes games that encouraged people to get a little healthier. In 2026, the healthiest advice I could give is "stop using your phone all the time". Google's lockdown of Android to verified developers and my own pivot away from smartphones means that I cannot either play or develop games with my own framework. The core tech functions as written, and likely will as long as the .NET Framework is maintained, but will not receive updates here.
 
 # Requirements
 * Visual Studio 2022 17.0+ Community (or the mac/linux equivalent)
